@@ -1,0 +1,103 @@
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(to right, #1e3c1e, #0c1f0c);
+  color: #fff;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 600px;
+  margin: 60px auto;
+  text-align: center;
+  background-color: rgba(255,255,255,0.05);
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.4);
+}
+
+h1 {
+  font-size: 32px;
+  margin-bottom: 30px;
+  color: #e0ffcc;
+}
+
+.leaderboard {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.leaderboard-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff10;
+  border: 1px solid #ffffff22;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: transform 0.2s;
+}
+
+.leaderboard-item:hover {
+  transform: scale(1.02);
+  background-color: #ffffff15;
+}
+
+.rank {
+  font-size: 18px;
+  font-weight: bold;
+  color: #FFD700;
+}
+
+.username {
+  font-size: 18px;
+  color: #e0ffcc;
+}
+
+.score {
+  font-size: 16px;
+  color: #aaffaa;
+  font-weight: bold;
+}
+
+/* ŞAMPİYON ÖZEL TASARIMI */
+.leaderboard-item.champion {
+  background: linear-gradient(to right, #ffe600, #ffc107);
+  color: #333;
+  font-weight: bold;
+  box-shadow: 0 0 12px rgba(255, 223, 0, 0.6);
+  transform: scale(1.05);
+}
+
+.leaderboard-item.champion .rank {
+  font-size: 24px;
+  color: #b8860b;
+}
+
+.leaderboard-item.champion .username {
+  color: #333;
+  font-weight: 700;
+}
+
+.leaderboard-item.champion .score {
+  color: #444;
+  font-weight: 700;
+}
+
+button {
+  margin-top: 30px;
+  padding: 12px 24px;
+  background-color: #28a745;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background-color: #218838;
+}

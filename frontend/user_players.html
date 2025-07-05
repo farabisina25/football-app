@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>⚽ Kadro Görünümü</title>
+  <link rel="stylesheet" href="user_players.css" />
+</head>
+<body>
+  <div class="wrapper">
+    <div class="top-bar">
+      <button id="back-to-game-btn" class="back-button">← Oyuna Dön</button>
+      <h1 id="user-title">🧑 Kullanıcının Kadrosu</h1>
+    </div>
+    <main class="main-content">
+      <div class="container">
+        <!-- Sol: Oyuncu Listesi -->
+        <div class="player-list-container">
+          <h2>📋 Oyuncu Listesi</h2>
+          <div id="player-list" class="player-list" ondrop="dropToList(event)" ondragover="allowDrop(event)"></div>
+        </div>
+
+        <!-- Sağ: Halısaha ve konteynerler -->
+        <div class="field-container">
+          <img src="assets/field.png" class="field-img" alt="Halısaha" />
+          
+          <!-- Konteynerler (11 adet) -->
+          <div class="player-slot" id="slot1" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="player-slot" id="slot2" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="player-slot" id="slot3" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="player-slot" id="slot4" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="player-slot" id="slot5" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="player-slot" id="slot6" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="player-slot" id="slot7" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="player-slot" id="slot8" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="player-slot" id="slot9" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="player-slot" id="slot10" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+          <div class="player-slot" id="slot11" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+
+          <!--button id="save-lineup-btn" class="save-button">💾 Kadroyu Kaydet</button-->
+        </div>
+      </div>
+    </main>
+    
+    <!-- Kullanıcı linkleri için alt alan -->
+    <div id="user-links" class="user-links-container"></div>
+  </div>
+
+  <script src="user_players.js"></script>
+</body>
+</html>

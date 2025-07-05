@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Football Game</title>
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <div class="main-content">
+
+    <h1>⚽ Takımını Oluştur</h1>
+    <div class="top-buttons">
+      <button id="restart-btn">↺ Yeniden Başla</button>
+      <button id="view-lineups-btn">📋 Kadroları Görüntüle</button>
+    </div>
+    <!-- Oyun Alanı -->
+    <div class="game-area" id="game-area">
+      
+      <div class="column" id="left-column">
+        <h2 id="turn-info-heading">Takım Çarkı</h2>
+        <div class="wheel-container">
+          <div class="arrow"></div>
+          <canvas id="team-wheel" width="500" height="500"></canvas>
+        </div>
+
+        <button id="spin-btn">Takım Seç</button>
+        <div id="result"></div>
+
+        <button id="end-game-btn" style="display: none;">Oyunu Bitir</button>
+      </div>
+
+      <div class="column" id="right-column">
+        <h2 id="right-heading" style="visibility: hidden;"></h2>
+        <div id="player-area" style="display: none;"></div>
+        <div id="scroll-anchor" style="height: 20px;"></div>
+      </div>
+    </div>
+
+  </div>
+  <script src="index.js"></script>
+  <div id="scroll-anchor" style="height: 1px;"></div>
+</body>
+</html>
