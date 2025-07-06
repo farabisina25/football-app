@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Takas Sistemi</title>
+  <link rel="stylesheet" href="trade.css" />
+</head>
+<body>
+
+  <header>
+    <h1>Takas Sistemi</h1>
+    <button id="view-lineups-btn">Kadroları Görüntüle</button>
+  </header>
+
+  <main>
+    <section id="input-section">
+      <label for="trade-count-input">Kaç takas hakkı istiyorsunuz?</label>
+      <input type="number" id="trade-count-input" min="1" max="5" />
+      <button id="generate-trade-fields-btn">Alanları Oluştur</button>
+    </section>
+
+    <section id="trade-fields-container"></section>
+  </main>
+
+  <div style="text-align: center; margin-top: 20px;">
+    <button id="submit-trades-btn">Takasları Kaydet</button>
+  </div>
+
+  <script src="trade.js"></script>
+</body>
+</html>

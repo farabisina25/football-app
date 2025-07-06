@@ -93,6 +93,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
+    elseif ($action === 'process_trades') {
+        $input = json_decode(file_get_contents("php://input"), true);
+
+        if (!$input || !is_array($input)) {
+            echo json_encode([
+                "success" => false,
+                "error" => "Veri alınamadı veya yanlış format: " . json_encode($input)
+            ]);
+            exit;
+        }
+        if (!is_array($input)) {
+            echo json_encode(["success" => false, "error" => "Geçersiz veri yapısı."]);
+            exit;
+        }
+
+        $stmtGetLineup = $pdo->prepare("SELECT * FROM lineup WHERE username = :username");
+        $stmtUpdateLineup = $pdo->prepare("UPDATE lineup SET player_name = :player_name WHERE username = :username AND slot_no = :slot_no");
+
+        $stmtUpdateGamePlayers = $pdo->prepare("UPDATE game_players SET username = :username WHERE player_name = :player_name");
+
+        foreach ($input as $trade) {
+            $thief = $trade["thief"];
+            $target = $trade["target_username"];
+            $stolenPlayer = $trade["stolen_player"];
+            $protectedPlayer = $trade["protected_player"];
+
+            // Eğer çalınmak istenen oyuncu korunduysa bu takas iptal edilir
+            if ($stolenPlayer === $protectedPlayer) {
+                continue;
+            }
+
+            // Her iki oyuncunun kadrolarını al
+            $stmtGetLineup->execute(["username" => $thief]);
+            $thiefLineup = $stmtGetLineup->fetchAll(PDO::FETCH_ASSOC);
+
+            $stmtGetLineup->execute(["username" => $target]);
+            $targetLineup = $stmtGetLineup->fetchAll(PDO::FETCH_ASSOC);
+
+            // Çalınmak istenen oyuncunun slot numarasını bul
+            $targetSlot = null;
+            foreach ($targetLineup as $entry) {
+                if (trim($entry["player_name"]) === trim($stolenPlayer)) {
+                    $targetSlot = $entry["slot_no"];
+                    break;
+                }
+            }
+
+            if (!$targetSlot) {
+                continue; // slot bulunamadıysa işlem iptal
+            }
+
+            // Hırsızın bu slotta hangi oyuncusu var
+            $thiefPlayer = null;
+            foreach ($thiefLineup as $entry) {
+                if ((int)$entry["slot_no"] === (int)$targetSlot) {
+                    $thiefPlayer = $entry["player_name"];
+                    break;
+                }
+            }
+
+            if (!$thiefPlayer) {
+                continue;
+            }
+
+            // LİNEUP tablolarını güncelle
+            $stmtUpdateLineup->execute([
+                "username" => $thief,
+                "slot_no" => $targetSlot,
+                "player_name" => $stolenPlayer
+            ]);
+
+            $stmtUpdateLineup->execute([
+                "username" => $target,
+                "slot_no" => $targetSlot,
+                "player_name" => $thiefPlayer
+            ]);
+
+            // GAME_PLAYERS tablolarını güncelle
+            $stmtUpdateGamePlayers->execute([
+                "username" => $thief,
+                "player_name" => $stolenPlayer
+            ]);
+
+            $stmtUpdateGamePlayers->execute([
+                "username" => $target,
+                "player_name" => $thiefPlayer
+            ]);
+        }
+
+        echo json_encode(["success" => true]);
+        exit;
+    }
+
+
     if ($action === 'get_leaderboard') {
         $stmt = $pdo->query("SELECT username, slot_no, player_name FROM saved_lineups");
         $lineups = $stmt->fetchAll(PDO::FETCH_ASSOC);

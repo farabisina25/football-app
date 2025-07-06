@@ -1,0 +1,57 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  background-color: #2e7d32;
+  color: white;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+button {
+  padding: 8px 12px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  background-color: #388e3c;
+  color: white;
+  border-radius: 4px;
+}
+
+button:hover {
+  background-color: #2e7d32;
+}
+
+main {
+  padding: 20px;
+}
+
+#input-section {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.trade-container {
+  border: 2px dashed #81c784;
+  padding: 15px;
+  margin-bottom: 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+}
+
+.trade-container h3 {
+  margin-bottom: 10px;
+}
+
+select {
+  width: 100%;
+  padding: 6px;
+  margin: 6px 0;
+  border-radius: 4px;
+}
