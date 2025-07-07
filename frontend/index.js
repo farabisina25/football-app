@@ -237,8 +237,11 @@ async function handleTeamSelection(index) {
     div.className = "player-item";
 
     const nameSpan = document.createElement("span");
-    const playerName = player.name || player.player_name || "İsimsiz Oyuncu";
-    nameSpan.textContent = playerName;
+    const playerName = player.player_name || "İsimsiz Oyuncu";
+    const position = player.position || "";
+
+    nameSpan.textContent = `${playerName} (${position})`;
+
 
     const btn = document.createElement("button");
     const owner = gameplayers.find(entry => entry.player_name?.trim() === playerName);
