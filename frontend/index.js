@@ -88,7 +88,7 @@ function drawWheel() {
   ctx.rotate(0); // Yelkovan açısı sıfır
   ctx.beginPath();
   ctx.moveTo(0, 0);
-  ctx.lineTo(0, -radius + 40); // veya -radius + 50
+  ctx.lineTo(0, -radius + 170); // veya -radius + 50
   ctx.lineWidth = 6;
   ctx.strokeStyle = "#e91e63";
   ctx.stroke();
@@ -143,7 +143,7 @@ function drawRotatedWheel(angleOffset, highlightIndex = -1) {
   ctx.rotate(0);
   ctx.beginPath();
   ctx.moveTo(0, 0);
-  ctx.lineTo(0, -radius + 40);
+  ctx.lineTo(0, -radius + 170);
   ctx.lineWidth = 6;
   ctx.strokeStyle = "#e91e63";
   ctx.stroke();
@@ -329,13 +329,14 @@ document.getElementById("end-game-btn").addEventListener("click", async () => {
   }
 
   // Tüm kullanıcılar 11 kişiyse yönlendir
-  window.location.href = "final.html";
+  window.location.href = "trade.html";
 });
 
 
 document.getElementById("view-lineups-btn").onclick = () => {
   const firstUsername = players[0].name;
-  window.location.href = `user_players.html?username=${encodeURIComponent(firstUsername)}`;
+  localStorage.setItem("fromPage", "index");
+  window.location.href = `user_players.html?username=${encodeURIComponent(firstUsername)}&from=index`;
 };
 
 document.getElementById("restart-btn").addEventListener("click", () => {

@@ -15,16 +15,16 @@
 
   <main>
     <section id="input-section">
-      <label for="trade-count-input">Kaç takas hakkı istiyorsunuz?</label>
+      <label for="trade-count-input" id="trade-count-label">Kaç takas hakkı istiyorsunuz?</label>
       <input type="number" id="trade-count-input" min="1" max="5" />
-      <button id="generate-trade-fields-btn">Alanları Oluştur</button>
+      <button id="generate-trade-fields-btn">Takaslara Başla</button>
     </section>
 
     <section id="trade-fields-container"></section>
   </main>
 
   <div style="text-align: center; margin-top: 20px;">
-    <button id="submit-trades-btn">Takasları Kaydet</button>
+    <button id="submit-trades-btn" style="display: none;">Takasları Bitir</button>
   </div>
 
   <script src="trade.js"></script>

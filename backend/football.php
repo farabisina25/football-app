@@ -156,64 +156,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents("php://input"), true);
 
-    if (isset($_GET['action']) && $_GET['action'] === 'process_trades') {
-        if (!$input || !is_array($input)) {
-            echo json_encode(["success" => false, "error" => "Geçersiz veri formatı."]);
-            exit;
+   if ($_GET["action"] == "process_trades") {
+        $data = json_decode(file_get_contents("php://input"), true);
+        $summary = [];
+
+        // 1. Tüm korunan oyuncuları çek
+        $protectedPlayers = [];
+        foreach ($data as $trade) {
+            if (isset($trade["protected_player"])) {
+                $protectedPlayers[] = [
+                    "username" => $trade["thief"], // kendi koruduğu oyuncuyu başkasına karşı korur
+                    "player_name" => $trade["protected_player"]
+                ];
+            }
         }
 
-        $stmtGetLineup = $pdo->prepare("SELECT * FROM saved_lineups WHERE username = ?");
-        $stmtUpdateLineup = $pdo->prepare("UPDATE saved_lineups SET player_name = ? WHERE username = ? AND slot_no = ?");
-        $stmtUpdateGamePlayers = $pdo->prepare("UPDATE game_players SET username = ? WHERE player_id = (SELECT id FROM players WHERE player_name = ?)");
+        $stmtDeleteLineup = $pdo->prepare("DELETE FROM saved_lineups WHERE username = ? AND player_name = ?");
+        $stmtUpdateGamePlayer = $pdo->prepare("UPDATE game_players gp JOIN players p ON gp.player_id = p.id SET gp.username = ? WHERE p.player_name = ?");
 
-        foreach ($input as $trade) {
-            if (!isset($trade['thief'], $trade['target_username'], $trade['stolen_player'], $trade['protected_player'])) {
+        foreach ($data as $trade) {
+            $thief = $trade["thief"];
+            $target = $trade["target_username"];
+            $stolen = $trade["stolen_player"];
+            $exchange = $trade["exchange_player"];
+
+            // 2. Bu oyuncu herhangi biri tarafından korunmuş mu?
+            $isProtected = false;
+            foreach ($protectedPlayers as $prot) {
+                if ($prot["player_name"] === $stolen) {
+                    $isProtected = true;
+                    break;
+                }
+            }
+
+            if ($isProtected) {
+                $summary[] = [
+                    "status" => "fail",
+                    "message" => "$thief kullanıcısı, $target'dan $stolen oyuncusunu çalmak istedi ama bu oyuncu koruma altında."
+                ];
                 continue;
             }
 
-            $thief = $trade['thief'];
-            $target = $trade['target_username'];
-            $stolenPlayer = $trade['stolen_player'];
-            $protectedPlayer = $trade['protected_player'];
+            // 3. Takas başarılıysa işlemleri yap
+            $stmtDeleteLineup->execute([$target, $stolen]);
+            $stmtUpdateGamePlayer->execute([$thief, $stolen]);
 
-            if (trim($stolenPlayer) === trim($protectedPlayer)) continue;
+            $stmtDeleteLineup->execute([$thief, $exchange]);
+            $stmtUpdateGamePlayer->execute([$target, $exchange]);
 
-            $stmtGetLineup->execute([$thief]);
-            $thiefLineup = $stmtGetLineup->fetchAll();
-
-            $stmtGetLineup->execute([$target]);
-            $targetLineup = $stmtGetLineup->fetchAll();
-
-            $targetSlot = null;
-            foreach ($targetLineup as $entry) {
-                if (trim($entry['player_name']) === trim($stolenPlayer)) {
-                    $targetSlot = $entry['slot_no'];
-                    break;
-                }
-            }
-
-            if ($targetSlot === null) continue;
-
-            $thiefPlayer = null;
-            foreach ($thiefLineup as $entry) {
-                if ((int)$entry['slot_no'] === (int)$targetSlot) {
-                    $thiefPlayer = $entry['player_name'];
-                    break;
-                }
-            }
-
-            if ($thiefPlayer === null) continue;
-
-            // Kadroyu güncelle
-            $stmtUpdateLineup->execute([$stolenPlayer, $thief, $targetSlot]);
-            $stmtUpdateLineup->execute([$thiefPlayer, $target, $targetSlot]);
-
-            // Oyuncu sahipliğini güncelle
-            $stmtUpdateGamePlayers->execute([$thief, $stolenPlayer]);
-            $stmtUpdateGamePlayers->execute([$target, $thiefPlayer]);
+            $summary[] = [
+                "status" => "success",
+                "message" => "$thief, $target'dan $stolen oyuncusunu aldı ve $exchange oyuncusunu verdi."
+            ];
         }
 
-        echo json_encode(["success" => true]);
+        echo json_encode([
+            "success" => true,
+            "message" => "Takaslar işlendi.",
+            "summary" => $summary
+        ]);
         exit;
     }
 

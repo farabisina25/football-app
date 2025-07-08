@@ -278,9 +278,22 @@ function applySlotBordersForAllSlots(username, allPlayers) {
   }
 })();
 
-document.getElementById("back-to-game-btn").addEventListener("click", () => {
-  window.location.href = "index.html";
-});
+const from = localStorage.getItem("fromPage"); // artık buradan geliyor
+const backBtn = document.getElementById("back-to-game-btn");
+
+if (from === "trade") {
+  backBtn.textContent = "← Takasa Dön";
+  backBtn.addEventListener("click", () => {
+    window.location.href = "trade.html";
+  });
+} else {
+  backBtn.textContent = "← Oyuna Dön";
+  backBtn.addEventListener("click", () => {
+    window.location.href = "index.html";
+  });
+}
+
+
 
 document.addEventListener("DOMContentLoaded", () => {
   const username = new URLSearchParams(window.location.search).get("username");
