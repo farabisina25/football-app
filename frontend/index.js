@@ -150,40 +150,33 @@ function drawRotatedWheel(angleOffset, highlightIndex = -1) {
   ctx.restore();
 }
 
-
-
-
-
 function spinWheel() {
   if (spinning || !isWaitingForTeamSelection) return;
   spinning = true;
-  velocity = Math.random() * 0.3 + 0.25;
+  velocity = Math.random() * 0.3 + 0.35;  // Başlangıç hızı artırıldı
 
   function animate() {
     drawRotatedWheel(angle);
     angle += velocity;
-    velocity *= 0.985;
+    velocity *= 0.96;  // Daha hızlı yavaşla
 
-  if (velocity < 0.002) {
-    spinning = false;
+    if (velocity < 0.01) {  // Daha erken dur
+      spinning = false;
 
-    const sliceAngle = (2 * Math.PI) / teamData.length;
-    let pointerAngle = (Math.PI * 1.5 - angle) % (2 * Math.PI);
-    if (pointerAngle < 0) pointerAngle += 2 * Math.PI;
+      const sliceAngle = (2 * Math.PI) / teamData.length;
+      let pointerAngle = (Math.PI * 1.5 - angle) % (2 * Math.PI);
+      if (pointerAngle < 0) pointerAngle += 2 * Math.PI;
 
-    const selectedIndex = Math.floor(pointerAngle / sliceAngle);
+      const selectedIndex = Math.floor(pointerAngle / sliceAngle);
 
-    // 🎯 Seçilen takımı vurgula
-    drawRotatedWheel(angle, selectedIndex);
+      drawRotatedWheel(angle, selectedIndex);
 
-    // ⏳ 700ms bekle, sonra seçim detayına geç
-    setTimeout(() => {
-      handleTeamSelection(selectedIndex);
-    }, 700);
+      setTimeout(() => {
+        handleTeamSelection(selectedIndex);
+      }, 700);
 
-    return;
-  }
-
+      return;
+    }
 
     requestAnimationFrame(animate);
   }
@@ -191,18 +184,10 @@ function spinWheel() {
   animate();
 }
 
-function clearWheelHighlightAnimated() {
-  let steps = 15;
-  let step = 0;
-  const interval = setInterval(() => {
-    drawRotatedWheel(angle, -1); // Highlight yok
-    step++;
-    if (step >= steps) clearInterval(interval);
-  }, 30); // Toplam 450ms
-}
-
 
 async function handleTeamSelection(index) {
+  localStorage.setItem("selectedTeamIndex", index);
+
   const username = players[currentPlayerIndex].name;
   selectedTeam = teamData[index];
   isWaitingForTeamSelection = false;
@@ -218,10 +203,10 @@ async function handleTeamSelection(index) {
   headingRight.textContent = `${selectedTeam.team_name} Oyuncuları (${username})`;
 
   // Listenin altına yumuşak kaydır
-  document.getElementById("scroll-anchor").scrollIntoView({
+  /*document.getElementById("scroll-anchor").scrollIntoView({
     behavior: "smooth",
     block: "end"
-  });
+  });*/
 
 
 
@@ -263,7 +248,7 @@ async function handleTeamSelection(index) {
           player_id: player.id
         };
 
-        const res = await fetch("http://localhost:8000/football.php", {
+        const res = await fetch("http://localhost:8000/football.php?action=add_game_player", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -277,14 +262,18 @@ async function handleTeamSelection(index) {
             behavior: 'smooth'
           });
 
-          // 🌟 2. 900ms bekle, sonra player listi ve başlığı kaldır
+          // 🌟 2. Takım bilgisini temizle
+          localStorage.removeItem("selectedTeamIndex");
+
+          // 🌟 3. 900ms bekle, sonra player listi ve başlığı kaldır
           setTimeout(async () => {
             document.getElementById("player-area").style.display = "none";
             document.getElementById("right-heading").style.visibility = "hidden";
 
-            // 🌟 3. Çarkı sıfırla
-            drawWheel(); // yeniden sıfır hali çiziliyor
+            // 🌟 4. Çarkı sıfırla
+            drawWheel();
 
+            // 🌟 5. Yeni tura geç
             isWaitingForTeamSelection = true;
             const canContinue = await calculateCurrentTurn();
             if (canContinue) updateTurnInfo();
@@ -293,6 +282,7 @@ async function handleTeamSelection(index) {
           alert("Ekleme başarısız: " + (data.error || "Bilinmeyen hata"));
         }
       };
+
 
     }
 
@@ -348,14 +338,21 @@ spinBtn.addEventListener("click", spinWheel);
 
 // Başlat
 loadTeams().then(async () => {
-  const canContinue = await calculateCurrentTurn();
-  if (canContinue) updateTurnInfo();
-  // Tüm oyuncular eklendikten sonra sayfanın en altındaki "scroll-anchor" öğesine kaydır
-setTimeout(() => {
-  const anchor = document.getElementById('scroll-anchor');
-  if (anchor) {
-    anchor.scrollIntoView({ behavior: 'smooth' });
-  }
-}, 300); // DOM’un kesinlikle güncellenmesi için biraz daha yüksek gecikme
+  const savedIndex = localStorage.getItem("selectedTeamIndex");
+  await calculateCurrentTurn();
+  updateTurnInfo();
 
+  if (savedIndex !== null && isWaitingForTeamSelection) {
+    await handleTeamSelection(parseInt(savedIndex));
+    return;
+  }
+
+  // En alta scroll
+  setTimeout(() => {
+    const anchor = document.getElementById('scroll-anchor');
+    if (anchor) {
+      anchor.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, 300);
 });
+

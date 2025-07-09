@@ -156,6 +156,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents("php://input"), true);
 
+    // Eğer array değilse hata döndür
+    if (!is_array($input)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Geçersiz veri formatı']);
+        exit;
+    }
+    
    if ($_GET["action"] == "process_trades") {
         $data = json_decode(file_get_contents("php://input"), true);
         $summary = [];
@@ -218,13 +225,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // Eğer array değilse hata döndür
-    if (!is_array($input)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Geçersiz veri formatı']);
-        exit;
-    }
-
     // save_lineup action'ı: kadroyu kaydetme
     if (isset($_GET['action']) && $_GET['action'] === 'save_lineup') {
         try {
@@ -255,30 +255,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         exit;
     }
+    if (isset($_GET['action']) && $_GET['action'] === 'add_game_player') {
+        if (!isset($input['username'], $input['team_id'], $input['player_id'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Eksik parametre', 'received' => $input]);
+            exit;
+        }
 
-    // Varsayılan: game_players'a oyuncu ekleme
-    if (!isset($input['username'], $input['team_id'], $input['player_id'])) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Eksik parametre', 'received' => $input]);
+        try {
+            $stmt = $pdo->prepare("INSERT INTO game_players (username, team_id, player_id) VALUES (?, ?, ?)");
+            $stmt->execute([
+                $input['username'],
+                $input['team_id'],
+                $input['player_id']
+            ]);
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
         exit;
     }
 
-    try {
-        $stmt = $pdo->prepare("INSERT INTO game_players (username, team_id, player_id) VALUES (?, ?, ?)");
-        $stmt->execute([
-            $input['username'],
-            $input['team_id'],
-            $input['player_id']
-        ]);
-        echo json_encode(['success' => true]);
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => $e->getMessage()]);
-    }
-    exit;
 }
-
-
 
 echo json_encode(['error' => 'Unsupported request method']);
 ?>
