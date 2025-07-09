@@ -158,7 +158,7 @@ function spinWheel() {
   function animate() {
     drawRotatedWheel(angle);
     angle += velocity;
-    velocity *= 0.96;  // Daha hızlı yavaşla
+    velocity *= 0.955;  // Daha hızlı yavaşla
 
     if (velocity < 0.01) {  // Daha erken dur
       spinning = false;
@@ -214,6 +214,17 @@ async function handleTeamSelection(index) {
     fetch(`http://localhost:8000/football.php?action=get_players_by_team&team_id=${selectedTeam.id}`).then(res => res.json()),
     fetch("http://localhost:8000/football.php?action=get_all_game_players").then(res => res.json())
   ]);
+
+  const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
+
+  playersList.sort((a, b) => {
+    const posA = a.position?.toUpperCase() || '';
+    const posB = b.position?.toUpperCase() || '';
+    const indexA = positionOrder.indexOf(posA);
+    const indexB = positionOrder.indexOf(posB);
+    // Bilinmeyen pozisyonlar en sona atılır
+    return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+  });
 
   playerArea.innerHTML = ""; // oyuncular için alan temizleniyor
 
@@ -330,6 +341,7 @@ document.getElementById("view-lineups-btn").onclick = () => {
 };
 
 document.getElementById("restart-btn").addEventListener("click", () => {
+  localStorage.removeItem("selectedTeamIndex");
   window.location.href = "start.html";
 });
 

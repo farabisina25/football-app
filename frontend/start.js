@@ -8,77 +8,84 @@
     function renderPlayers() {
       container.innerHTML = '';
 
+      // İlk boş indeks bulunur
+      const firstEmptyIndex = players.findIndex(p => p === null);
+
       for (let i = 0; i < maxPlayers; i++) {
         const card = document.createElement('div');
         card.className = 'player-card';
 
         if (!players[i]) {
-          const addBtn = document.createElement('button');
-          addBtn.textContent = 'Add';
-          addBtn.className = 'add-button';
+          if (i === firstEmptyIndex) {
+            // Sadece ilk boş index için "Add" butonu göster
+            const addBtn = document.createElement('button');
+            addBtn.textContent = 'Add';
+            addBtn.className = 'add-button';
 
-          addBtn.onclick = () => {
-            card.innerHTML = '';
+            addBtn.onclick = () => {
+              card.innerHTML = '';
 
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.placeholder = 'Kullanıcı adı';
+              const input = document.createElement('input');
+              input.type = 'text';
+              input.placeholder = 'Kullanıcı adı';
 
-            const saveBtn = document.createElement('button');
-            saveBtn.textContent = 'Kaydet';
-            saveBtn.className = 'add-button';
+              const saveBtn = document.createElement('button');
+              saveBtn.textContent = 'Kaydet';
+              saveBtn.className = 'add-button';
 
-            saveBtn.onclick = () => {
-              const username = input.value.trim();
-              if (username && !players.some(p => p?.name === username)) {
-                // Ad kaydedildi, şimdi renk seçtir
-                card.innerHTML = '';
+              saveBtn.onclick = () => {
+                const username = input.value.trim();
+                if (username && !players.some(p => p?.name === username)) {
+                  // Ad kaydedildi, şimdi renk seçtir
+                  card.innerHTML = '';
 
-                const colorLabel = document.createElement('div');
-                colorLabel.textContent = 'Renk seçin:';
-                colorLabel.style.marginBottom = '10px';
+                  const colorLabel = document.createElement('div');
+                  colorLabel.textContent = 'Renk seçin:';
+                  colorLabel.style.marginBottom = '10px';
 
-                const colorInput = document.createElement('input');
-                colorInput.type = 'color';
-                colorInput.value = '#ff0000';
-                colorInput.style.width = '60px';
-                colorInput.style.height = '40px';
+                  const colorInput = document.createElement('input');
+                  colorInput.type = 'color';
+                  colorInput.value = '#ff0000';
+                  colorInput.style.width = '60px';
+                  colorInput.style.height = '40px';
 
-                const finalSaveBtn = document.createElement('button');
-                finalSaveBtn.textContent = 'Tamamla';
-                finalSaveBtn.className = 'add-button';
+                  const finalSaveBtn = document.createElement('button');
+                  finalSaveBtn.textContent = 'Tamamla';
+                  finalSaveBtn.className = 'add-button';
 
-                finalSaveBtn.onclick = () => {
-                  const color = colorInput.value;
-                  players[i] = { name: username, color: color };
-                  renderPlayers();
-                };
+                  finalSaveBtn.onclick = () => {
+                    const color = colorInput.value;
+                    players[i] = { name: username, color: color };
+                    renderPlayers();
+                  };
 
-                card.appendChild(colorLabel);
-                card.appendChild(colorInput);
-                card.appendChild(finalSaveBtn);
-              } else {
-                alert("Geçersiz veya tekrar eden kullanıcı adı.");
-              }
+                  card.appendChild(colorLabel);
+                  card.appendChild(colorInput);
+                  card.appendChild(finalSaveBtn);
+                } else {
+                  alert("Geçersiz veya tekrar eden kullanıcı adı.");
+                }
+              };
+
+              card.appendChild(input);
+              card.appendChild(saveBtn);
+              input.focus();
             };
 
-            card.appendChild(input);
-            card.appendChild(saveBtn);
-            input.focus();
-          };
-
-          card.appendChild(addBtn);
+            card.appendChild(addBtn);
+          }
         } else {
           const nameEl = document.createElement('div');
           nameEl.className = 'username-label';
           nameEl.textContent = players[i].name;
-          nameEl.style.color = players[i].color || '#e0ffcc'; // renk göster
+          nameEl.style.color = players[i].color || '#e0ffcc';
           card.appendChild(nameEl);
         }
 
         container.appendChild(card);
       }
     }
+
 
     startBtn.onclick = () => {
       const validPlayers = players.filter(Boolean);

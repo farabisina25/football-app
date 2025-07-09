@@ -71,21 +71,36 @@ document.getElementById("generate-trade-fields-btn").addEventListener("click", (
 
 
 function loadTeamPlayers(username, type) {
-    fetch(`http://localhost:8000/football.php?action=user_players&username=${encodeURIComponent(username)}`)
-      .then(res => res.json())
-      .then(data => {
-        const selects = document.querySelectorAll(`select.${type}-select[data-username="${username}"]`);
-        selects.forEach(select => {
-          select.innerHTML = `<option disabled selected>Oyuncu Seç</option>`;
-          data.forEach(p => {
-            const opt = document.createElement("option");
-            opt.value = p.player_name;
-            opt.textContent = p.player_name;
-            select.appendChild(opt);
-          });
+  fetch(`http://localhost:8000/football.php?action=user_players&username=${encodeURIComponent(username)}`)
+    .then(res => res.json())
+    .then(data => {
+      const selects = document.querySelectorAll(`select.${type}-select[data-username="${username}"]`);
+      
+      // Veriyi mevkisine göre sıralama
+      const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
+      const sortedPlayers = data.sort((a, b) => {
+        const posA = (a.position || '').toUpperCase();
+        const posB = (b.position || '').toUpperCase();
+        const indexA = positionOrder.indexOf(posA);
+        const indexB = positionOrder.indexOf(posB);
+        return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+      });
+
+      selects.forEach(select => {
+        select.innerHTML = `<option disabled selected>Oyuncu Seç</option>`;
+
+        sortedPlayers.forEach(p => {
+          const option = document.createElement("option");
+          option.value = p.player_name;
+          option.textContent = `${p.player_name} (${p.position})`; // İsmin yanında mevkiyi göster
+          select.appendChild(option);
         });
       });
-  }
+    });
+}
+
+
+
 
 function showSummary(summaries) {
   const summaryDiv = document.createElement("div");
@@ -142,17 +157,32 @@ function loadOpponentPlayers(username) {
         .then(res => res.json())
         .then(data => {
           const selects = document.querySelectorAll(`select.steal-select[data-username="${username}"]`);
+          
+          // Veriyi mevkisine göre sıralama
+          const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
+          const sortedPlayers = data.sort((a, b) => {
+            const posA = (a.position || '').toUpperCase();
+            const posB = (b.position || '').toUpperCase();
+            const indexA = positionOrder.indexOf(posA);
+            const indexB = positionOrder.indexOf(posB);
+            return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+          });
+
           selects.forEach(select => {
-            data.forEach(p => {
-              const opt = document.createElement("option");
-              opt.value = `${p.player_name}|${opponent.name}`;
-              opt.textContent = `${p.player_name} (${opponent.name})`;
-              select.appendChild(opt);
+            select.innerHTML = `<option disabled selected>Oyuncu Seç</option>`;
+
+            sortedPlayers.forEach(p => {
+              const option = document.createElement("option");
+              option.value = `${p.player_name}|${opponent.name}`;
+              option.textContent = `${p.player_name} (${p.position})`; // İsmin yanında mevkiyi göster
+              select.appendChild(option);
             });
           });
         });
     });
 }
+
+
 
 document.getElementById("submit-trades-btn").addEventListener("click", async () => {
   const tradeContainers = document.querySelectorAll(".trade-container");

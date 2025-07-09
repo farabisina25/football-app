@@ -1,5 +1,6 @@
 const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get('username');
+const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
 document.getElementById('user-title').innerText = `${username} - Seçtiği Oyuncular`;
 
 // Kadroda yer alan oyuncuların isimlerini burada tutacağız
@@ -35,6 +36,16 @@ fetch(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURI
     return;
   }
 
+  const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
+
+  data.sort((a, b) => {
+    const posA = (a.position || '').toUpperCase();
+    const posB = (b.position || '').toUpperCase();
+    const indexA = positionOrder.indexOf(posA);
+    const indexB = positionOrder.indexOf(posB);
+    return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+  });
+
   data.forEach((player, index) => {
     const rawName = player.player_name?.trim();
     const position = player.position?.toUpperCase() || "POZİSYON YOK";
@@ -56,6 +67,22 @@ fetch(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURI
     console.error(err);
     document.getElementById('player-list').innerHTML = '<p>Oyuncular yüklenemedi.</p>';
   });
+
+function sortPlayerList() {
+  const list = document.getElementById("player-list");
+  const items = Array.from(list.getElementsByClassName("player-item"));
+
+  items.sort((a, b) => {
+    const posA = a.getAttribute("data-position")?.toUpperCase() || "Z";
+    const posB = b.getAttribute("data-position")?.toUpperCase() || "Z";
+    const indexA = positionOrder.indexOf(posA);
+    const indexB = positionOrder.indexOf(posB);
+    return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+  });
+
+  items.forEach(item => list.appendChild(item)); // sıraya göre tekrar ekle
+}
+
 
 function allowDrop(ev) {
   ev.preventDefault();
@@ -80,20 +107,17 @@ function drop(ev) {
     const draggedName = draggedText.split(" - ")[0].trim();
     const draggedPosition = draggedText.split(" - ")[1]?.trim() || "POZİSYON YOK";
     targetSlot.innerText = `${draggedName} - ${draggedPosition}`;
-
     targetSlot.setAttribute("data-position", draggedPosition);
 
     if (draggedElement.classList.contains("player-item")) {
       draggedElement.remove();
-
-      // 👇 Oyuncunun adını ayıkla ve existingLineupNames'e ekle
-      const justName = draggedText.split(" - ")[0].trim();
+      const justName = draggedName;
       if (!existingLineupNames.includes(justName)) {
         existingLineupNames.push(justName);
       }
-
     } else if (draggedElement.classList.contains("player-slot")) {
       draggedElement.innerText = '';
+      draggedElement.removeAttribute("data-position");
     }
 
     targetSlot.classList.add('fade-in');
@@ -101,9 +125,15 @@ function drop(ev) {
 
   } else {
     if (draggedElement.classList.contains("player-slot")) {
-      draggedElement.innerText = targetText;
+      // 🛠️ Slot-to-slot: iki slotun içeriği ve pozisyon bilgisi takas ediliyor
       const draggedName = draggedText.split(" - ")[0].trim();
-      const draggedPosition = draggedElement.getAttribute("data-position") || draggedText.split(" - ")[1]?.trim() || "POZİSYON YOK";
+      const draggedPosition = draggedElement.getAttribute("data-position") || "POZİSYON YOK";
+      const targetName = targetText.split(" - ")[0].trim();
+      const targetPosition = targetSlot.getAttribute("data-position") || "POZİSYON YOK";
+
+      draggedElement.innerText = `${targetName} - ${targetPosition}`;
+      draggedElement.setAttribute("data-position", targetPosition);
+
       targetSlot.innerText = `${draggedName} - ${draggedPosition}`;
       targetSlot.setAttribute("data-position", draggedPosition);
 
@@ -115,27 +145,27 @@ function drop(ev) {
       }, 300);
 
     } else if (draggedElement.classList.contains("player-item")) {
-      // Yeni bir liste öğesi oluştur (mevcut slottaki oyuncuyu geri eklemek için)
       const newListItem = document.createElement("div");
       newListItem.className = 'player-item fade-in';
       const targetName = targetText.split(" - ")[0].trim();
       const targetPosition = targetSlot.getAttribute("data-position") || targetText.split(" - ")[1]?.trim() || "POZİSYON YOK";
       newListItem.innerText = `${targetName} - ${targetPosition}`;
-
       newListItem.id = `player-${Date.now()}`;
       newListItem.draggable = true;
       newListItem.ondragstart = drag;
+      newListItem.setAttribute("data-position", targetPosition);
 
       document.getElementById("player-list").appendChild(newListItem);
+      sortPlayerList(); // ✅ listeye yeni oyuncu eklendiğinde yeniden sırala
 
       const draggedName = draggedText.split(" - ")[0].trim();
       const draggedPosition = draggedText.split(" - ")[1]?.trim() || "POZİSYON YOK";
       targetSlot.innerText = `${draggedName} - ${draggedPosition}`;
+      targetSlot.setAttribute("data-position", draggedPosition);
 
       draggedElement.remove();
 
-      // 👇 Yeni eklenen oyuncuyu da liste dışına alma
-      const justName = draggedText.split(" - ")[0].trim();
+      const justName = draggedName;
       if (!existingLineupNames.includes(justName)) {
         existingLineupNames.push(justName);
       }
@@ -147,8 +177,9 @@ function drop(ev) {
 
   updateSlotDraggables();
   autoSaveLineup();
-  setTimeout(updateSlotDraggables, 100); // DOM tamamlandıktan sonra çalışması için
+  setTimeout(updateSlotDraggables, 100);
 }
+
 
 function dropToList(ev) {
   ev.preventDefault();
@@ -170,6 +201,8 @@ function dropToList(ev) {
   newPlayer.id = `player-${Date.now()}`; // benzersiz id
 
   document.getElementById("player-list").appendChild(newPlayer);
+  sortPlayerList(); // 🔄 Liste güncellendiğinde otomatik sırala
+
 
   // 🔄 Slot'tan alındıysa slot'u temizle, listeden alındıysa sil
   if (draggedElement.classList.contains("player-slot")) {

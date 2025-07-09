@@ -6,6 +6,18 @@ body {
   padding: 0;
   background-attachment: fixed;
   min-height: 100vh;
+  opacity: 0;
+  animation: fadeIn 1s forwards;
+}
+
+/* Fade-in animasyonu */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 /* Başlık ve üst menü */
@@ -41,11 +53,25 @@ button {
 button:hover {
   background-color: #1b5e20;
   transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(0, 128, 0, 0.7);
 }
 
 /* Ana içerik */
 main {
   padding: 20px;
+  animation: slideUp 0.5s ease-out forwards;
+}
+
+/* Sayfa yukarı kayma animasyonu */
+@keyframes slideUp {
+  0% {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Giriş formu */
@@ -54,31 +80,46 @@ main {
   text-align: center;
 }
 
-#trade-count-input {
-  padding: 8px;
-  font-size: 16px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  width: 60px;
-  margin-right: 10px;
-}
-
-/* Oyuncuların yan yana gösterimi */
+/* Takas Alanları */
 #trade-fields-container {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
   gap: 40px;
   margin-top: 20px;
+  opacity: 0;
+  animation: fadeInContainer 1s forwards;
+}
+
+/* Takas kutularına animasyon ekleyelim */
+@keyframes fadeInContainer {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .user-trade-column {
   display: flex;
   flex-direction: column;
   width: 320px;
+  opacity: 0;
+  animation: fadeInColumn 1s forwards;
+  animation-delay: 0.5s;
 }
 
-/* Trade kartları */
+/* Her takas kartı için animasyon */
+@keyframes fadeInColumn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 .trade-container {
   background: linear-gradient(135deg, rgb(200, 255, 200), rgb(160, 240, 160));
   border: 3px solid #c8e6c9;
@@ -86,21 +127,34 @@ main {
   border-radius: 10px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   margin-bottom: 25px;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
 }
-
 
 .trade-container:hover {
   transform: scale(1.02);
+  box-shadow: 0 8px 16px rgba(0, 128, 0, 0.2);
 }
 
 .trade-container h3 {
   margin-top: 0;
   color: #1b5e20;
   text-shadow: 1px 1px white;
+  animation: fadeInText 0.8s ease-in-out forwards;
 }
 
-/* Select kutuları */
+/* Text animasyonu */
+@keyframes fadeInText {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Seçim kutuları */
 select {
   width: 100%;
   padding: 10px;
@@ -109,6 +163,12 @@ select {
   border: 1px solid #ccc;
   background-color: white;
   font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+select:hover {
+  border-color: #4caf50;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
 }
 
 /* Takasları Bitir butonu */
@@ -117,6 +177,18 @@ select {
   display: block;
   margin-left: auto;
   margin-right: auto;
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #00695c;
+  color: white;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#submit-trades-btn:hover {
+  background-color: #004d40;
 }
 
 /* Takas Özeti Kutusu */
@@ -128,6 +200,18 @@ select {
   margin: 40px auto;
   padding: 20px 30px;
   box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  animation: fadeInSummary 1s ease-in-out forwards;
+}
+
+@keyframes fadeInSummary {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 #trade-summary h2 {
@@ -158,12 +242,4 @@ select {
 
 #trade-summary li.fail {
   color: red;
-}
-
-#trade-summary button {
-  margin-top: 20px;
-  display: block;
-  background-color: #00695c;
-  padding: 10px 18px;
-  font-size: 16px;
 }
