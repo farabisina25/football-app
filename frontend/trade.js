@@ -185,6 +185,10 @@ function loadOpponentPlayers(username) {
 
 
 document.getElementById("submit-trades-btn").addEventListener("click", async () => {
+  const preTradeRes = await fetch("http://localhost:8000/football.php?action=get_leaderboard");
+  const preTradeLeaderboard = await preTradeRes.json();
+  localStorage.setItem("preTradeLeaderboard", JSON.stringify(preTradeLeaderboard));
+  
   const tradeContainers = document.querySelectorAll(".trade-container");
   const trades = [];
   const summaries = [];
