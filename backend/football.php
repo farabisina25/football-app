@@ -104,29 +104,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
-    if ($action === 'get_leaderboard') {
-        $stmt = $pdo->query("SELECT username, slot_no, player_name FROM saved_lineups");
+    /*if ($action === 'get_leaderboard') {
+        $stmt = $pdo->query("SELECT l.username, l.slot_no, l.player_name, p.position, p.ovr 
+                            FROM saved_lineups l
+                            JOIN players p ON l.player_name = p.player_name");
         $lineups = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Pozisyon-Slot oranları tablosu
+        $multipliers = [
+            "GK"  => [1, 0.4, 0.4, 0.3, 0.3, 0.15, 0.15, 0.10, 0.05, 0.05, 0.05],
+            "RB"  => [0.3, 0.8, 0.8, 0.9, 1.0, 0.6, 0.6, 0.3, 0.15, 0.15, 0.05],
+            "CB"  => [0.4, 1.0, 1.0, 0.8, 0.8, 0.3, 0.3, 0.2, 0.1, 0.1, 0.05],
+            "LB"  => [0.3, 0.8, 0.8, 1.0, 0.9, 0.6, 0.6, 0.3, 0.15, 0.15, 0.05],
+            "CDM" => [0.15, 0.6, 0.6, 0.8, 0.8, 1.0, 1.0, 0.6, 0.35, 0.35, 0.15],
+            "CM"  => [0.15, 0.4, 0.4, 0.5, 0.5, 1.0, 1.0, 0.8, 0.6, 0.6, 0.35],
+            "CAM" => [0.10, 0.15, 0.15, 0.3, 0.3, 0.8, 0.8, 1.0, 0.8, 0.8, 0.6],
+            "RM"  => [0.10, 0.15, 0.15, 0.4, 0.4, 0.6, 0.6, 0.8, 0.9, 1.0, 0.6],
+            "LM"  => [0.10, 0.15, 0.15, 0.4, 0.4, 0.6, 0.6, 0.8, 1.0, 0.9, 0.6],
+            "RW"  => [0.05, 0.15, 0.15, 0.3, 0.3, 0.5, 0.5, 0.7, 0.9, 1.0, 0.8],
+            "LW"  => [0.05, 0.15, 0.15, 0.3, 0.3, 0.5, 0.5, 0.7, 1.0, 0.9, 0.8],
+            "ST"  => [0.05, 0.15, 0.15, 0.3, 0.3, 0.5, 0.5, 0.6, 0.7, 0.7, 1.0],
+        ];
 
         $leaderboard = [];
 
         foreach ($lineups as $entry) {
-            $username   = $entry['username'];
-            $playerName = $entry['player_name'];
+            $username = $entry['username'];
+            $position = strtoupper($entry['position']);
+            $slot     = (int)$entry['slot_no'];
+            $ovr      = floatval($entry['ovr']);
 
-            $stmt2 = $pdo->prepare("SELECT ovr FROM players WHERE player_name = ?");
-            $stmt2->execute([$playerName]);
-            $stats = $stmt2->fetch(PDO::FETCH_ASSOC);
+            // Çarpanı al
+            $multiplier = $multipliers[$position][$slot - 1] ?? 0;
 
-            if (!$stats || !isset($stats['ovr'])) continue;
-
-            $overall = floatval($stats['ovr']);
+            $adjusted_ovr = $ovr * $multiplier;
 
             if (!isset($leaderboard[$username])) {
                 $leaderboard[$username] = ['total' => 0, 'count' => 0];
             }
 
-            $leaderboard[$username]['total'] += $overall;
+            $leaderboard[$username]['total'] += $adjusted_ovr;
             $leaderboard[$username]['count'] += 1;
         }
 
@@ -143,7 +160,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         echo json_encode($result);
         exit;
+    }*/
+
+    if ($action === 'get_leaderboard') {
+        $stmt = $pdo->query("SELECT l.username, l.slot_no, l.player_name, p.position, p.ovr 
+                            FROM saved_lineups l
+                            JOIN players p ON l.player_name = p.player_name");
+        $lineups = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $multipliers = [
+            "GK"  => [1, 0.4, 0.4, 0.3, 0.3, 0.15, 0.15, 0.10, 0.05, 0.05, 0.05],
+            "RB"  => [0.3, 0.8, 0.8, 0.9, 1.0, 0.6, 0.6, 0.3, 0.15, 0.15, 0.05],
+            "CB"  => [0.4, 1.0, 1.0, 0.8, 0.8, 0.3, 0.3, 0.2, 0.1, 0.1, 0.05],
+            "LB"  => [0.3, 0.8, 0.8, 1.0, 0.9, 0.6, 0.6, 0.3, 0.15, 0.15, 0.05],
+            "CDM" => [0.15, 0.6, 0.6, 0.8, 0.8, 1.0, 1.0, 0.6, 0.35, 0.35, 0.15],
+            "CM"  => [0.15, 0.4, 0.4, 0.5, 0.5, 1.0, 1.0, 0.8, 0.6, 0.6, 0.35],
+            "CAM" => [0.10, 0.15, 0.15, 0.3, 0.3, 0.8, 0.8, 1.0, 0.8, 0.8, 0.6],
+            "RM"  => [0.10, 0.15, 0.15, 0.4, 0.4, 0.6, 0.6, 0.8, 0.9, 1.0, 0.6],
+            "LM"  => [0.10, 0.15, 0.15, 0.4, 0.4, 0.6, 0.6, 0.8, 1.0, 0.9, 0.6],
+            "RW"  => [0.05, 0.15, 0.15, 0.3, 0.3, 0.5, 0.5, 0.7, 0.9, 1.0, 0.8],
+            "LW"  => [0.05, 0.15, 0.15, 0.3, 0.3, 0.5, 0.5, 0.7, 1.0, 0.9, 0.8],
+            "ST"  => [0.05, 0.15, 0.15, 0.3, 0.3, 0.5, 0.5, 0.6, 0.7, 0.7, 1.0],
+        ];
+
+        $leaderboard = [];
+
+        foreach ($lineups as $entry) {
+            $username = $entry['username'];
+            $position = strtoupper($entry['position']);
+            $slot     = (int)$entry['slot_no'];
+            $player   = $entry['player_name'];
+            $ovr      = floatval($entry['ovr']);
+
+            $multiplier = $multipliers[$position][$slot - 1] ?? 0;
+            $adjusted_ovr = $ovr * $multiplier;
+
+            // Oyuncu detayını tut
+            if (!isset($leaderboard[$username])) {
+                $leaderboard[$username] = [
+                    'total' => 0,
+                    'count' => 0,
+                    'details' => []
+                ];
+            }
+
+            $leaderboard[$username]['total'] += $adjusted_ovr;
+            $leaderboard[$username]['count'] += 1;
+            $leaderboard[$username]['details'][] = [
+                'player' => $player,
+                'position' => $position,
+                'slot' => $slot,
+                'original_ovr' => $ovr,
+                'multiplier' => $multiplier,
+                'adjusted_ovr' => $adjusted_ovr
+            ];
+        }
+
+        $result = [];
+        foreach ($leaderboard as $user => $data) {
+            $avg = $data['count'] > 0 ? $data['total'] / $data['count'] : 0;
+            $result[] = [
+                'username' => $user,
+                'power' => number_format($avg, 2, '.', ''),
+                'players' => $data['details'] // loglamalık detaylı liste
+            ];
+        }
+
+        usort($result, fn($a, $b) => $b['power'] <=> $a['power']);
+
+        echo json_encode($result);
+        exit;
     }
+
 
 
     echo json_encode(['error' => 'Invalid GET parameters']);
