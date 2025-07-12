@@ -1,0 +1,141 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(to bottom, #3e8e41, #2c6c2f);
+  color: #fff;
+}
+
+.top-bar {
+  background-color: #1b4f26;
+  padding: 20px;
+  text-align: center;
+  position: relative;
+}
+
+.top-bar h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.back-button {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 8px 14px;
+  font-weight: bold;
+  background-color: #e0ffe0;
+  color: #2c6c2f;
+  border: 2px solid #4caf50;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.back-button:hover {
+  background-color: #c8f5c8;
+}
+
+.lineup-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 40px;
+  padding: 40px;
+}
+
+.lineup-box {
+  width: 400px;
+  position: relative;
+  background-color: #ffffff22;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+
+.lineup-box h2 {
+  text-align: center;
+  margin-bottom: 10px;
+  font-size: 18px;
+  color: #fff;
+}
+
+.field-img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.1);
+}
+
+/* SLOT STİLİ */
+.static-slot {
+  position: absolute;
+  width: 120px;
+  height: 30px;
+  font-size: 12px;
+  font-weight: bold;
+  background-color: rgba(255,255,255,0.9);
+  color: #000;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 3px solid transparent; /* Renk JS ile atanacak */
+}
+
+.static-slot:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 14px rgba(0, 255, 100, 0.4);
+}
+
+/* SLOT POZİSYONLARI */
+.slot1  { top: 600px; left: 160px; }
+.slot2  { top: 520px; left: 85px; }
+.slot3  { top: 520px; left: 235px; }
+.slot4  { top: 460px; left: 46px; }
+.slot5  { top: 460px; left: 275px; }
+.slot6  { top: 360px; left: 64px; }
+.slot7  { top: 360px; left: 256px; }
+.slot8  { top: 280px; left: 160px; }
+.slot9  { top: 190px; left: 45px; }
+.slot10 { top: 190px; left: 275px; }
+.slot11 { top: 100px; left: 160px; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(to bottom, #3e8e41, #2c6c2f);
+  color: #fff;
+}
+
+.top-bar {
+  background-color: #1b4f26;
+  padding: 20px;
+  text-align: center;
+  position: relative;
+}
+
+.lineup-grid {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 40px;
+  padding: 80px;
+  box-sizing: border-box;
+}
+

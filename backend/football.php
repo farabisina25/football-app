@@ -270,6 +270,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmtUpdateGamePlayer = $pdo->prepare("UPDATE game_players gp JOIN players p ON gp.player_id = p.id SET gp.username = ? WHERE p.player_name = ?");
 
         foreach ($data as $trade) {
+            if (
+                !isset($trade["thief"], $trade["target_username"], $trade["stolen_player"], $trade["exchange_player"]) ||
+                empty($trade["thief"]) || empty($trade["target_username"]) || empty($trade["stolen_player"]) || empty($trade["exchange_player"])
+            ) {
+                $summary[] = [
+                    "status" => "fail",
+                    "message" => "Eksik bilgi nedeniyle bir takas işlenemedi."
+                ];
+                continue; // Bu trade'i atla
+            }
             $thief = $trade["thief"];
             $target = $trade["target_username"];
             $stolen = $trade["stolen_player"];

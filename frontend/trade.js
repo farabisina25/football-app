@@ -1,4 +1,6 @@
 const players = JSON.parse(localStorage.getItem('players')) || [];
+const trades = [];
+const summaries = [];
 
 document.addEventListener("DOMContentLoaded", () => {
   const savedSummary = localStorage.getItem("tradeSummary");
@@ -15,59 +17,89 @@ if (!Array.isArray(players) || players.length === 0) {
 
 document.getElementById("view-lineups-btn").addEventListener("click", () => {
   const firstUser = players[0].name;
-  localStorage.setItem("fromPage", "trade");
-  window.location.href = `user_players.html?username=${encodeURIComponent(firstUser)}&from=trade`;
+  const tradesDone = localStorage.getItem("tradesSubmitted") === "true";
+
+  if (tradesDone) {
+    // ✅ Takaslar gönderildiyse: user_players
+    localStorage.setItem("fromPage", "trade");
+    window.location.href = `user_players.html?username=${encodeURIComponent(firstUser)}&from=trade`;
+  } else {
+    // ✅ Takas gönderilmedi: görsel kadro önizleme sayfası
+    window.location.href = "trade_lineups.html";
+  }
 });
 
-document.getElementById("generate-trade-fields-btn").addEventListener("click", () => {
-  const tradeCount = parseInt(document.getElementById("trade-count-input").value);
-  const container = document.getElementById("trade-fields-container");
-  container.innerHTML = "";
 
-  if (isNaN(tradeCount) || tradeCount <= 0) {
-    alert("Lütfen 1 ile 5 arasında geçerli bir takas hakkı giriniz.");
+document.getElementById("generate-trade-fields-btn").addEventListener("click", () => {
+  const totalTrades = parseInt(document.getElementById("trade-count-input").value);
+  const protectCount = parseInt(document.getElementById("protect-count-input").value);
+  if (isNaN(totalTrades) || isNaN(protectCount) || totalTrades <= 0 || protectCount <= 0) {
+    alert("Lütfen geçerli takas ve koruma sayısı giriniz.");
     return;
   }
 
+
   // ➤ Input ve butonu gizle
   document.getElementById("trade-count-input").style.display = "none";
-  document.getElementById("generate-trade-fields-btn").style.display = "none";
-  document.getElementById("trade-count-input").style.display = "none";
   document.getElementById("trade-count-label").style.display = "none";
+  document.getElementById("protect-count-input").style.display = "none";
+  document.getElementById("protect-count-label").style.display = "none";
+  document.getElementById("generate-trade-fields-btn").style.display = "none";
+
 
   // ➤ Takasları Bitir butonunu göster
   document.getElementById("submit-trades-btn").style.display = "block";
 
-  // ➤ Her kullanıcı için takas alanlarını oluştur
+  const container = document.getElementById("trade-fields-container");
+  container.innerHTML = "";
+
   players.forEach(player => {
     const column = document.createElement("div");
     column.className = "user-trade-column";
     column.setAttribute("data-username", player.name);
-
-    for (let i = 0; i < tradeCount; i++) {
-      const tradeDiv = document.createElement("div");
-      tradeDiv.className = "trade-container";
-      tradeDiv.innerHTML = `
-        <h3>${player.name} - Takas ${i + 1}</h3>
-
-        <label>Çalmak istediğin oyuncu (rakip):</label>
-        <select class="steal-select" data-username="${player.name}"></select>
-
-        <label>Takaslamak istediğin oyuncu (kendi):</label>
-        <select class="exchange-select" data-username="${player.name}"></select>
-
-        <label>Korumak istediğin oyuncu (kendi):</label>
-        <select class="protect-select" data-username="${player.name}"></select>
-      `;
-      column.appendChild(tradeDiv);
+    if (isNaN(totalTrades) || isNaN(protectCount) || totalTrades <= 0 || protectCount <= 0) {
+      alert("Lütfen geçerli takas ve koruma sayısı giriniz.");
+      return;
     }
 
-    container.appendChild(column);
-    loadTeamPlayers(player.name, 'exchange');
+
+    // 🟢 Koruma Alanı
+    const protectDiv = document.createElement("div");
+    protectDiv.className = "trade-container";
+    protectDiv.innerHTML = `
+      <h3>${player.name} - Koruma Hakları (${protectCount})</h3>
+      ${[...Array(protectCount)].map((_, i) => `
+        <label>Koruma ${i + 1}</label>
+        <select class="protect-select" data-username="${player.name}"></select>
+      `).join("")}
+    `;
+    column.appendChild(protectDiv);
     loadTeamPlayers(player.name, 'protect');
-    loadOpponentPlayers(player.name);
+
+    players.filter(p => p.name !== player.name).forEach(opponent => {
+      for (let t = 0; t < totalTrades; t++) {
+        const tradeDiv = document.createElement("div");
+        tradeDiv.className = "trade-container";
+        tradeDiv.innerHTML = `
+          <h3>${player.name} → ${opponent.name} Takası ${t + 1}</h3>
+          <label>${opponent.name}'dan çalmak istediğin oyuncu:</label>
+          <select class="steal-select" data-username="${player.name}" data-target="${opponent.name}"></select>
+
+          <label>${player.name}'dan vereceğin oyuncu:</label>
+          <select class="exchange-select" data-username="${player.name}"></select>
+        `;
+        column.appendChild(tradeDiv);
+
+        loadOpponentPlayers(opponent.name, player.name);  
+      }
+    });
+
+
+    loadTeamPlayers(player.name, 'exchange'); // takas için kendi oyuncuları yükle
+    container.appendChild(column);
   });
 });
+
 
 
 function loadTeamPlayers(username, type) {
@@ -134,6 +166,7 @@ function showSummary(summaries) {
     }
 
     localStorage.removeItem("tradeSummary"); // özeti temizle
+    localStorage.removeItem("tradesSubmitted");
     window.location.href = "final.html";
   };
 
@@ -149,97 +182,118 @@ function showSummary(summaries) {
 }
 
 
-function loadOpponentPlayers(username) {
-  players
-    .filter(p => p.name !== username)
-    .forEach(opponent => {
-      fetch(`http://localhost:8000/football.php?action=user_players&username=${encodeURIComponent(opponent.name)}`)
-        .then(res => res.json())
-        .then(data => {
-          const selects = document.querySelectorAll(`select.steal-select[data-username="${username}"]`);
-          
-          // Veriyi mevkisine göre sıralama
-          const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
-          const sortedPlayers = data.sort((a, b) => {
-            const posA = (a.position || '').toUpperCase();
-            const posB = (b.position || '').toUpperCase();
-            const indexA = positionOrder.indexOf(posA);
-            const indexB = positionOrder.indexOf(posB);
-            return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
-          });
+function loadOpponentPlayers(opponentName, forUsername) {
+  fetch(`http://localhost:8000/football.php?action=user_players&username=${encodeURIComponent(opponentName)}`)
+    .then(res => res.json())
+    .then(data => {
+      const selects = document.querySelectorAll(`select.steal-select[data-username="${forUsername}"][data-target="${opponentName}"]`);
 
-          selects.forEach(select => {
-            select.innerHTML = `<option disabled selected>Oyuncu Seç</option>`;
+      const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
+      const sortedPlayers = data.sort((a, b) => {
+        const posA = (a.position || '').toUpperCase();
+        const posB = (b.position || '').toUpperCase();
+        return positionOrder.indexOf(posA) - positionOrder.indexOf(posB);
+      });
 
-            sortedPlayers.forEach(p => {
-              const option = document.createElement("option");
-              option.value = `${p.player_name}|${opponent.name}`;
-              option.textContent = `${p.player_name} (${p.position})`; // İsmin yanında mevkiyi göster
-              select.appendChild(option);
-            });
-          });
+      selects.forEach(select => {
+        select.innerHTML = `<option disabled selected>Oyuncu Seç</option>`;
+        sortedPlayers.forEach(p => {
+          const option = document.createElement("option");
+          option.value = `${p.player_name}|${opponentName}`;
+          option.textContent = `${p.player_name} (${p.position})`;
+          select.appendChild(option);
         });
+      });
     });
 }
 
 
 
 document.getElementById("submit-trades-btn").addEventListener("click", async () => {
-  const preTradeRes = await fetch("http://localhost:8000/football.php?action=get_leaderboard");
-  const preTradeLeaderboard = await preTradeRes.json();
-  localStorage.setItem("preTradeLeaderboard", JSON.stringify(preTradeLeaderboard));
-  
-  const tradeContainers = document.querySelectorAll(".trade-container");
-  const trades = [];
-  const summaries = [];
+    const preTradeRes = await fetch("http://localhost:8000/football.php?action=get_leaderboard");
+    console.log("Gönderilen trades verisi:", JSON.stringify(trades, null, 2));
 
-  tradeContainers.forEach(container => {
-    const username = container.querySelector(".steal-select").dataset.username;
-    const stealValue = container.querySelector(".steal-select").value;
-    const exchangeValue = container.querySelector(".exchange-select").value;
-    const protectValue = container.querySelector(".protect-select").value;
+    const preTradeLeaderboard = await preTradeRes.json();
+    localStorage.setItem("preTradeLeaderboard", JSON.stringify(preTradeLeaderboard));
 
-    if (!stealValue || !exchangeValue || !protectValue) return;
+    const tradeContainers = document.querySelectorAll(".trade-container");
+    // Takas girişlerinden geçici veri toplama
+    const attemptedSteals = [];
 
-    const [stolen_player, target_username] = stealValue.split("|");
+    tradeContainers.forEach(container => {
+      const stealEl = container.querySelector(".steal-select");
+      const exchangeEl = container.querySelector(".exchange-select");
+      const protectEls = container.querySelectorAll(".protect-select");
 
-    // Eğer korunan oyuncu, çalınmak istenen oyuncuysa trade geçersiz
-    if (stolen_player === protectValue) {
-      summaries.push({
-        status: "fail",
-        message: `${username} kullanıcısı, ${target_username}'dan ${stolen_player} oyuncusunu çalmak istedi ama bu oyuncu koruma altında.`
-      });
-      return; // Backend'e gönderme
+      if (!stealEl && !exchangeEl && protectEls.length > 0) return;
+
+      const username = stealEl.dataset.username;
+      const stealValue = stealEl.value;
+      const exchangeValue = exchangeEl.value;
+
+      if (!stealValue || !exchangeValue) return;
+
+      const [stolen_player, target_username] = stealValue.split("|");
+
+      attemptedSteals.push({ thief: username, target_username, stolen_player, exchange_player: exchangeValue });
+    });
+
+    // 🛑 1 oyuncuyu birden fazla kişi çalmaya çalıştıysa, bu takasları iptal et
+    const stealCounts = {};
+    attemptedSteals.forEach(t => {
+      const key = `${t.target_username}|${t.stolen_player}`;
+      stealCounts[key] = (stealCounts[key] || 0) + 1;
+    });
+
+    attemptedSteals.forEach(t => {
+      const key = `${t.target_username}|${t.stolen_player}`;
+      if (stealCounts[key] > 1) {
+        summaries.push({
+          status: "fail",
+          message: `${t.thief} kullanıcısı ${t.target_username}'dan ${t.stolen_player} oyuncusunu çalmaya çalıştı ancak bu oyuncuya birden fazla kişi talip olduğu için takas iptal edildi.`
+        });
+      } else {
+        // 🔐 Koruma kontrolü
+        const protectSelects = document.querySelectorAll(`.protect-select[data-username="${t.target_username}"]`);
+        let isProtected = false;
+        protectSelects.forEach(select => {
+          if (select.value === t.stolen_player) {
+            isProtected = true;
+          }
+        });
+
+        if (isProtected) {
+          summaries.push({
+            status: "fail",
+            message: `${t.thief} kullanıcısı, ${t.target_username}'dan ${t.stolen_player} oyuncusunu çalmak istedi ama bu oyuncu koruma altında.`
+          });
+        } else {
+          trades.push(t);
+        }
+      }
+    });
+
+    // Hiç geçerli takas yoksa sadece özet göster
+    if (trades.length === 0 && summaries.length > 0) {
+      showSummary(summaries);
+      return;
     }
 
-    trades.push({
-      thief: username,
-      target_username,
-      stolen_player,
-      protected_player: protectValue,
-      exchange_player: exchangeValue
+    const res = await fetch("http://localhost:8000/football.php?action=process_trades", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(trades)
     });
+
+    const result = await res.json();
+
+    if (result.success) {
+      const allSummaries = [...summaries, ...(result.summary || [])];
+      showSummary(allSummaries);
+      localStorage.setItem("tradesSubmitted", "true");
+    } else {
+      alert("Takas işlemleri sırasında hata oluştu.");
+    }
   });
 
-  // Eğer hiç geçerli takas yoksa sadece özet göster
-  if (trades.length === 0 && summaries.length > 0) {
-    showSummary(summaries);
-    return;
-  }
-
-  const res = await fetch("http://localhost:8000/football.php?action=process_trades", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(trades)
-  });
-
-  const result = await res.json();
-
-  if (result.success) {
-    const allSummaries = [...summaries, ...(result.summary || [])];
-    showSummary(allSummaries);
-  } else {
-    alert("Takas işlemleri sırasında hata oluştu.");
-  }
-});
 

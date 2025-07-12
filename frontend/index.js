@@ -153,14 +153,21 @@ function drawRotatedWheel(angleOffset, highlightIndex = -1) {
 function spinWheel() {
   if (spinning || !isWaitingForTeamSelection) return;
   spinning = true;
-  velocity = Math.random() * 0.3 + 0.35;  // Başlangıç hızı artırıldı
+
+  velocity = Math.random() * 0.1 + 0.15;  // Başlangıç hızı
 
   function animate() {
     drawRotatedWheel(angle);
     angle += velocity;
-    velocity *= 0.955;  // Daha hızlı yavaşla
 
-    if (velocity < 0.01) {  // Daha erken dur
+    // Durmaya yaklaştıkça yavaşlama daha da artar
+    if (velocity < 0.03) {
+      velocity *= 0.96;  // Daha keskin yavaşlat
+    } else {
+      velocity *= 0.99;  // Normal yavaşlama
+    }
+
+    if (velocity < 0.005) {  // Daha yumuşak eşik
       spinning = false;
 
       const sliceAngle = (2 * Math.PI) / teamData.length;
@@ -183,6 +190,9 @@ function spinWheel() {
 
   animate();
 }
+
+
+
 
 
 async function handleTeamSelection(index) {
