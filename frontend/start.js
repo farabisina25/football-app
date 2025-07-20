@@ -15,75 +15,86 @@
         const card = document.createElement('div');
         card.className = 'player-card';
 
+        // ➤ HENÜZ EKLENMEMİŞ SLOT
         if (!players[i]) {
           if (i === firstEmptyIndex) {
-            // Sadece ilk boş index için "Add" butonu göster
             const addBtn = document.createElement('button');
             addBtn.textContent = 'Add';
             addBtn.className = 'add-button';
 
-            addBtn.onclick = () => {
-              card.innerHTML = '';
-
-              const input = document.createElement('input');
-              input.type = 'text';
-              input.placeholder = 'Kullanıcı adı';
-
-              const saveBtn = document.createElement('button');
-              saveBtn.textContent = 'Kaydet';
-              saveBtn.className = 'add-button';
-
-              saveBtn.onclick = () => {
-                const username = input.value.trim();
-                if (username && !players.some(p => p?.name === username)) {
-                  // Ad kaydedildi, şimdi renk seçtir
-                  card.innerHTML = '';
-
-                  const colorLabel = document.createElement('div');
-                  colorLabel.textContent = 'Renk seçin:';
-                  colorLabel.style.marginBottom = '10px';
-
-                  const colorInput = document.createElement('input');
-                  colorInput.type = 'color';
-                  colorInput.value = '#ff0000';
-                  colorInput.style.width = '60px';
-                  colorInput.style.height = '40px';
-
-                  const finalSaveBtn = document.createElement('button');
-                  finalSaveBtn.textContent = 'Tamamla';
-                  finalSaveBtn.className = 'add-button';
-
-                  finalSaveBtn.onclick = () => {
-                    const color = colorInput.value;
-                    players[i] = { name: username, color: color };
-                    renderPlayers();
-                  };
-
-                  card.appendChild(colorLabel);
-                  card.appendChild(colorInput);
-                  card.appendChild(finalSaveBtn);
-                } else {
-                  alert("Geçersiz veya tekrar eden kullanıcı adı.");
-                }
-              };
-
-              card.appendChild(input);
-              card.appendChild(saveBtn);
-              input.focus();
-            };
-
+            addBtn.onclick = () => showPlayerInputForm(i, card);
             card.appendChild(addBtn);
           }
-        } else {
+        }
+
+        // ➤ ZATEN EKLENMİŞ SLOT
+        else {
           const nameEl = document.createElement('div');
           nameEl.className = 'username-label';
           nameEl.textContent = players[i].name;
           nameEl.style.color = players[i].color || '#e0ffcc';
           card.appendChild(nameEl);
+
+          const editBtn = document.createElement('button');
+          editBtn.textContent = 'Düzenle';
+          editBtn.className = 'add-button';
+          editBtn.onclick = () => showPlayerInputForm(i, card, true);
+          card.appendChild(editBtn);
         }
 
         container.appendChild(card);
       }
+    }
+
+    function showPlayerInputForm(index, card, isEdit = false) {
+      card.innerHTML = '';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = 'Kullanıcı adı';
+      input.value = isEdit && players[index] ? players[index].name : '';
+
+      const colorWrapper = document.createElement('div');
+      colorWrapper.className = 'color-picker-wrapper';
+
+      const colorLabel = document.createElement('div');
+      colorLabel.textContent = 'Renk Seçin';
+      colorLabel.className = 'color-label';
+
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.className = 'color-input';
+      colorInput.value = isEdit && players[index] ? players[index].color : '#ff0000';
+
+      colorWrapper.appendChild(colorLabel);
+      colorWrapper.appendChild(colorInput);
+
+
+      const saveBtn = document.createElement('button');
+      saveBtn.textContent = isEdit ? 'Güncelle' : 'Kaydet';
+      saveBtn.className = 'add-button';
+
+      saveBtn.onclick = () => {
+        const username = input.value.trim();
+        const color = colorInput.value;
+
+        const nameConflict = players.some((p, idx) =>
+          idx !== index && p?.name === username
+        );
+
+        if (!username || nameConflict) {
+          alert("Geçersiz veya tekrar eden kullanıcı adı.");
+          return;
+        }
+
+        players[index] = { name: username, color: color };
+        renderPlayers();
+      };
+
+      card.appendChild(input);
+      card.appendChild(colorWrapper);
+      card.appendChild(saveBtn);
+      input.focus();
     }
 
 

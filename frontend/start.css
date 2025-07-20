@@ -136,3 +136,46 @@ input[type="text"] {
   background-color: #0056b3;
   box-shadow: 0 0 20px rgba(0, 123, 255, 1);
 }
+
+/* Renk seçici özel stil */
+.color-picker-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 2px;
+  gap: 8px;
+}
+
+.color-label {
+  font-size: 13px;
+  color: #dfffd0;
+  font-weight: 500;
+  text-shadow: 0 0 2px #000;
+}
+
+.color-input {
+  -webkit-appearance: none;
+  border: 2px solid #fff;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  width: 60px;
+  height: 40px;
+  background: none;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+.color-input:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* Chrome ve Edge için renk giriş kutusunun stilini temizle */
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}

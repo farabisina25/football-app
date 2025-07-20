@@ -46,22 +46,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     if ($action === 'get_lineup' && isset($_GET['username'])) {
-    $stmt = $pdo->prepare("
-        SELECT 
-            l.username, 
-            l.slot_no, 
-            l.player_name, 
-            p.position, 
-            p.ovr
-        FROM saved_lineups l
-        JOIN players p ON l.player_name = p.player_name
-        WHERE l.username = ?
-        ORDER BY l.slot_no ASC
-    ");
-    $stmt->execute([$_GET['username']]);
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
-    exit;
-}
+        $stmt = $pdo->prepare("
+            SELECT 
+                l.username, 
+                l.slot_no, 
+                l.player_name, 
+                p.position, 
+                p.ovr,
+                p.team_id
+            FROM saved_lineups l
+            JOIN players p ON l.player_name = p.player_name
+            WHERE l.username = ?
+            ORDER BY l.slot_no ASC
+        ");
+        $stmt->execute([$_GET['username']]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
 
 
     if ($action === 'get_all_lineups') {

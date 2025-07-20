@@ -108,6 +108,7 @@ function drop(ev) {
     const draggedPosition = draggedText.split(" - ")[1]?.trim() || "POZİSYON YOK";
     targetSlot.innerText = `${draggedName} - ${draggedPosition}`;
     targetSlot.setAttribute("data-position", draggedPosition);
+    targetSlot.setAttribute("data-team", draggedElement.getAttribute("data-team") || ""); 
 
     if (draggedElement.classList.contains("player-item")) {
       draggedElement.remove();
@@ -118,6 +119,7 @@ function drop(ev) {
     } else if (draggedElement.classList.contains("player-slot")) {
       draggedElement.innerText = '';
       draggedElement.removeAttribute("data-position");
+      draggedElement.removeAttribute("data-team");
     }
 
     targetSlot.classList.add('fade-in');
@@ -137,14 +139,20 @@ function drop(ev) {
       targetSlot.innerText = `${draggedName} - ${draggedPosition}`;
       targetSlot.setAttribute("data-position", draggedPosition);
 
+      // ✅ BURAYA EKLE 👇
+      const draggedTeam = draggedElement.getAttribute("data-team") || "";
+      const targetTeam = targetSlot.getAttribute("data-team") || "";
+      draggedElement.setAttribute("data-team", targetTeam);
+      targetSlot.setAttribute("data-team", draggedTeam);
+
       draggedElement.classList.add('fade-in');
       targetSlot.classList.add('fade-in');
       setTimeout(() => {
         draggedElement.classList.remove('fade-in');
         targetSlot.classList.remove('fade-in');
       }, 300);
-
-    } else if (draggedElement.classList.contains("player-item")) {
+    }
+     else if (draggedElement.classList.contains("player-item")) {
       const newListItem = document.createElement("div");
       newListItem.className = 'player-item fade-in';
       const targetName = targetText.split(" - ")[0].trim();
@@ -178,6 +186,7 @@ function drop(ev) {
   updateSlotDraggables();
   autoSaveLineup();
   setTimeout(updateSlotDraggables, 100);
+  calculateChemistryLinks();
 }
 
 
@@ -213,6 +222,7 @@ function dropToList(ev) {
 
   setTimeout(updateSlotDraggables, 100);
   autoSaveLineup();
+  calculateChemistryLinks();
 }
 
 
@@ -279,6 +289,98 @@ function applySlotBordersForAllSlots(username, allPlayers) {
     }
   }
 }
+
+function getAdjacentSlots(slotNo) {
+  const adjacencyMap = {
+    1: [2, 3, 4, 5],
+    2: [1, 3, 4],
+    3: [1, 2, 5],
+    4: [2, 6, 9],
+    5: [3, 7, 10],
+    6: [4, 7, 8],
+    7: [5, 6, 8],
+    8: [6, 7, 9, 10, 11],
+    9: [4, 8, 11],
+    10: [5, 8, 11],
+    11: [8, 9, 10],
+  };
+  return adjacencyMap[slotNo] || [];
+}
+
+function calculateChemistryLinks() {
+  // Önce tüm kimya sınıflarını temizle
+  for (let i = 1; i <= 11; i++) {
+    const slot = document.getElementById(`slot${i}`);
+    slot?.classList.remove("chemistry-link");
+  }
+
+  // Ardından yeniden hesapla
+  const teamMap = {};
+  for (let i = 1; i <= 11; i++) {
+    const slot = document.getElementById(`slot${i}`);
+    const team = slot?.getAttribute("data-team");
+    if (team) teamMap[i] = team;
+  }
+
+  for (let i = 1; i <= 11; i++) {
+    const thisTeam = teamMap[i];
+    if (!thisTeam) continue;
+
+    const neighbors = getAdjacentSlots(i);
+    neighbors.forEach(n => {
+      if (teamMap[n] && teamMap[n] === thisTeam) {
+        document.getElementById(`slot${i}`)?.classList.add("chemistry-link");
+        document.getElementById(`slot${n}`)?.classList.add("chemistry-link");
+      }
+    });
+  }
+  const bondedPairs = new Set();
+
+  for (let i = 1; i <= 11; i++) {
+    const thisTeam = teamMap[i];
+    if (!thisTeam) continue;
+
+    const neighbors = getAdjacentSlots(i);
+    neighbors.forEach(n => {
+      if (teamMap[n] && teamMap[n] === thisTeam) {
+        const pair = [i, n].sort().join("-");
+        bondedPairs.add(pair); // tekrar edenleri engellemek için
+      }
+    });
+  }
+
+  console.log("🔥 Kimya Bağları:", Array.from(bondedPairs));
+
+  // 🔄 SVG ile çizgileri çiz
+  const svg = document.getElementById("chemistry-lines");
+  svg.innerHTML = ''; // önceki çizgileri sil
+
+  bondedPairs.forEach(pair => {
+    const [i, j] = pair.split("-").map(Number);
+    const el1 = document.getElementById(`slot${i}`);
+    const el2 = document.getElementById(`slot${j}`);
+
+    if (!el1 || !el2) return;
+
+    const rect1 = el1.getBoundingClientRect();
+    const rect2 = el2.getBoundingClientRect();
+    const svgRect = svg.getBoundingClientRect();
+
+    const x1 = rect1.left + rect1.width / 2 - svgRect.left;
+    const y1 = rect1.top + rect1.height / 2 - svgRect.top;
+    const x2 = rect2.left + rect2.width / 2 - svgRect.left;
+    const y2 = rect2.top + rect2.height / 2 - svgRect.top;
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", x1);
+    line.setAttribute("y1", y1);
+    line.setAttribute("x2", x2);
+    line.setAttribute("y2", y2);
+    svg.appendChild(line);
+  });
+
+}
+
 
 // Sayfanın alt kısmına kullanıcı linkleri oluştur
 (function renderUserLinks() {
@@ -356,7 +458,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (slot) {
           const position = player.position?.toUpperCase() || "POZİSYON YOK";
           slot.innerText = `${player.player_name} - ${position}`;
-          slot.setAttribute("data-position", position); // sadece pozisyonu kaydet
+          slot.setAttribute("data-position", position);
+          slot.setAttribute("data-team", player.team_id); // ✅ EKLENDİ
         }
       });
       updateSlotDraggables();
@@ -364,6 +467,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }).catch(err => {
       console.error("Kadro yüklenirken hata:", err);
     });
+
+  setTimeout(() => {
+    calculateChemistryLinks();
+  }, 100);
 });
 
 

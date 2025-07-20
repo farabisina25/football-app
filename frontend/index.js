@@ -39,6 +39,7 @@ async function calculateCurrentTurn() {
   currentPlayerIndex = userPlayerCounts.findIndex(count => count === minCount);
 
   if (allEqual && allMaxed) {
+    isWaitingForTeamSelection = false;  // Turlar bitti
     spinBtn.disabled = true;
     spinBtn.style.opacity = "0.5";
     spinBtn.style.cursor = "not-allowed";
@@ -52,11 +53,19 @@ async function calculateCurrentTurn() {
 }
 
 function updateTurnInfo() {
-  const username = players[currentPlayerIndex].name;
   const heading = document.getElementById("turn-info-heading");
+
+  // Tüm oyuncular 11 kişilik kadro oluşturduysa
+  if (!isWaitingForTeamSelection) {
+    heading.textContent = "Turlar Bitti";
+    return;
+  }
+
+  const username = players[currentPlayerIndex].name;
   heading.textContent = `${username} - ${currentTurn + 1}. Tur`;
   playerArea.innerHTML = ""; // Tur metni gösterilmeyecek
 }
+
 
 
 function drawWheel() {

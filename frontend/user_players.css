@@ -242,6 +242,36 @@ html, body {
   border: 2px solid #ffffff66;
 }
 
+.player-slot.chemistry-link {
+  box-shadow: 0 0 12px 4px rgba(0, 255, 0, 0.5); /* yeşil parıltı */
+  border: 3px solid #66ff66;
+}
+
+#chemistry-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;  /* 🔽 Slotlardan daha düşük */
+  pointer-events: none;
+}
+
+
+#chemistry-lines line {
+  stroke: #00ffff; /* 🟦 Daha parlak ve saha zeminine uygun */
+  stroke-width: 6;  /* Daha kalın */
+  opacity: 0.9;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 8px #00ffff);
+  transition: all 0.2s ease;
+}
+
+.player-slot {
+  position: absolute;
+  z-index: 2; /* 🔼 Çizgilerden daha yüksek */
+}
+
+
+
 /* Slot pozisyonları */
 #slot1  { top: 550px; left: 135px; }
 #slot2  { top: 470px; left: 60px; }
