@@ -40,14 +40,19 @@ async function calculateCurrentTurn() {
 
   if (allEqual && allMaxed) {
     isWaitingForTeamSelection = false;  // Turlar bitti
-    spinBtn.disabled = true;
-    spinBtn.style.opacity = "0.5";
-    spinBtn.style.cursor = "not-allowed";
 
-    playerArea.style.display = "none"; // ✔ Liste gizlendi
-    endGameBtn.style.display = 'inline-block'; // ✔ Buton gösterildi
+    // Çark butonunu tamamen gizle
+    spinBtn.style.display = "none";
+
+    // "Oyunu Bitir" butonunu göster
+    endGameBtn.style.display = 'inline-block';
+
+    // Oyuncu listesi gizlensin
+    playerArea.style.display = "none";
+
     return false;
   }
+
 
   return true;
 }
