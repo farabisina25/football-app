@@ -7,8 +7,19 @@ document.addEventListener("DOMContentLoaded", () => {
   if (savedSummary) {
     const parsed = JSON.parse(savedSummary);
     showSummary(parsed);
+    return;
+  }
+
+  const totalTrades = parseInt(localStorage.getItem("totalTrades"));
+  const protectCount = parseInt(localStorage.getItem("protectCount"));
+
+  if (!isNaN(totalTrades) && !isNaN(protectCount)) {
+    document.getElementById("trade-count-input").value = totalTrades;
+    document.getElementById("protect-count-input").value = protectCount;
+    document.getElementById("generate-trade-fields-btn").click();
   }
 });
+
 
 if (!Array.isArray(players) || players.length === 0) {
   alert("Kullanıcı bilgisi bulunamadı. Lütfen giriş sayfasından başlayın.");
@@ -38,6 +49,8 @@ document.getElementById("generate-trade-fields-btn").addEventListener("click", (
     return;
   }
 
+  localStorage.setItem("totalTrades", totalTrades);
+  localStorage.setItem("protectCount", protectCount);
 
   // ➤ Input ve butonu gizle
   document.getElementById("trade-count-input").style.display = "none";
@@ -179,6 +192,8 @@ function showSummary(summaries) {
 
   // ✅ Özet bilgisini localStorage'a yaz
   localStorage.setItem("tradeSummary", JSON.stringify(summaries));
+  localStorage.removeItem("totalTrades");
+  localStorage.removeItem("protectCount");
 }
 
 
