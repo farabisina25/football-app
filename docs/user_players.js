@@ -60,7 +60,7 @@ fetch(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURI
 
     div.innerText = `${rawName} - ${position}`;
     div.setAttribute("data-position", position);
-
+    div.setAttribute("data-team", player.team_id || "");
     list.appendChild(div);
   });
 }).catch(err => {
@@ -152,7 +152,7 @@ function drop(ev) {
         targetSlot.classList.remove('fade-in');
       }, 300);
     }
-     else if (draggedElement.classList.contains("player-item")) {
+    else if (draggedElement.classList.contains("player-item")) {
       const newListItem = document.createElement("div");
       newListItem.className = 'player-item fade-in';
       const targetName = targetText.split(" - ")[0].trim();
@@ -168,8 +168,10 @@ function drop(ev) {
 
       const draggedName = draggedText.split(" - ")[0].trim();
       const draggedPosition = draggedText.split(" - ")[1]?.trim() || "POZİSYON YOK";
+      const draggedTeam = draggedElement.getAttribute("data-team") || ""; // 👈 EKLENDİ
       targetSlot.innerText = `${draggedName} - ${draggedPosition}`;
       targetSlot.setAttribute("data-position", draggedPosition);
+      targetSlot.setAttribute("data-team", draggedTeam); // 👈 EKLENDİ
 
       draggedElement.remove();
 
@@ -199,12 +201,14 @@ function dropToList(ev) {
   const playerText = draggedElement.innerText.trim();
   const playerName = playerText.split(" - ")[0].trim();
   const playerPosition = draggedElement.getAttribute("data-position") || playerText.split(" - ")[1]?.trim() || "POZİSYON YOK";
+  const playerTeam = draggedElement.getAttribute("data-team") || "";
 
   // 🔧 Yeni player DOM öğesi oluşturuluyor
   const newPlayer = document.createElement('div');
   newPlayer.className = 'player-item fade-in'; // 🎯 Stil sınıfları eksiksiz
   newPlayer.innerText = `${playerName} - ${playerPosition}`;
   newPlayer.setAttribute("data-position", playerPosition);
+  newPlayer.setAttribute("data-team", playerTeam);
   newPlayer.setAttribute("draggable", "true");
   newPlayer.ondragstart = drag;
   newPlayer.id = `player-${Date.now()}`; // benzersiz id
@@ -216,6 +220,8 @@ function dropToList(ev) {
   // 🔄 Slot'tan alındıysa slot'u temizle, listeden alındıysa sil
   if (draggedElement.classList.contains("player-slot")) {
     draggedElement.innerText = '';
+    draggedElement.removeAttribute("data-position");
+    draggedElement.removeAttribute("data-team");
   } else {
     draggedElement.remove();
   }
@@ -378,7 +384,13 @@ function calculateChemistryLinks() {
     line.setAttribute("y2", y2);
     svg.appendChild(line);
   });
-
+  const username = new URLSearchParams(window.location.search).get("username");
+  const chemistryCount = bondedPairs.size; // eşsiz bağlantı sayısı
+  if (localStorage.getItem("fromPage") === "trade") {
+    localStorage.setItem(`chemistry_after_${username}`, chemistryCount);
+  } else {
+    localStorage.setItem(`chemistry_before_${username}`, chemistryCount);
+  }
 }
 
 
