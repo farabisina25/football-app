@@ -389,6 +389,7 @@ function calculateChemistryLinks() {
   if (localStorage.getItem("fromPage") === "trade") {
     localStorage.setItem(`chemistry_after_${username}`, chemistryCount);
   } else {
+    localStorage.setItem(`chemistry_after_${username}`, chemistryCount);
     localStorage.setItem(`chemistry_before_${username}`, chemistryCount);
   }
 }
