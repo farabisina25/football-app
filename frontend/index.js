@@ -311,7 +311,7 @@ async function handleTeamSelection(index) {
             // 🌟 5. Yeni tura geç
             isWaitingForTeamSelection = true;
             const canContinue = await calculateCurrentTurn();
-            if (canContinue) updateTurnInfo();
+            updateTurnInfo();
           }, 900);
         } else {
           alert("Ekleme başarısız: " + (data.error || "Bilinmeyen hata"));
