@@ -31,9 +31,17 @@ preTrade.forEach((entry, index) => {
   });
 });
 
+// 🔁 Oyuncuların formasyonlarını topla
+const players = JSON.parse(localStorage.getItem("players") || "[]");
+const params = new URLSearchParams();
 
+players.forEach((p, index) => {
+  const formation = localStorage.getItem(`selectedFormation_${p.name}`) || "4231";
+  params.append(`formation${index + 1}`, formation);
+});
 
-fetch("http://localhost:8000/football.php?action=get_leaderboard") 
+// 📡 SONRA leaderboard verisini çek
+fetch(`http://localhost:8000/football.php?action=get_leaderboard&${params.toString()}`)
   .then(res => res.json())
   .then(data => {
     // Her entry'ye kimya bonuslu final power hesapla ve ekle
@@ -54,9 +62,9 @@ fetch("http://localhost:8000/football.php?action=get_leaderboard")
       if (index === 0) li.classList.add("champion");
 
       li.innerHTML = `
-          <span class="rank">${index === 0 ? '🏆' : '#' + (index + 1)}</span>
-          <span class="username">${entry.username}</span>
-          <span class="score">Güç: ${entry.finalPower.toFixed(2)} <small>(+${entry.bonus.toFixed(2)})</small></span>
+        <span class="rank">${index === 0 ? '🏆' : '#' + (index + 1)}</span>
+        <span class="username">${entry.username}</span>
+        <span class="score">Güç: ${entry.finalPower.toFixed(2)} <small>(+${entry.bonus.toFixed(2)})</small></span>
       `;
       list.appendChild(li);
 
@@ -67,21 +75,8 @@ fetch("http://localhost:8000/football.php?action=get_leaderboard")
     });
   });
 
-
+// 🔁 Reset
 document.getElementById("restart-btn")?.addEventListener("click", () => {
-  const players = JSON.parse(localStorage.getItem("players") || "[]");
-
-  // Her oyuncu için kimya verilerini sil
-  players.forEach(p => {
-    localStorage.removeItem(`chemistry_before_${p.name}`);
-    localStorage.removeItem(`chemistry_after_${p.name}`);
-  });
-
-  // Diğer temizlenmesini istediğin verileri burada da silebilirsin
-  localStorage.removeItem("fromPage");
-
-  // Start sayfasına yönlendir
+  localStorage.clear();
   window.location.href = "start.html";
 });
-
-

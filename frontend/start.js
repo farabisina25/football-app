@@ -99,6 +99,7 @@
 
 
     startBtn.onclick = () => {
+      localStorage.clear();
       const validPlayers = players.filter(Boolean);
       if (validPlayers.length === 0) {
         alert("En az bir kullanıcı adı girilmelidir.");

@@ -345,14 +345,11 @@ document.getElementById("end-game-btn").addEventListener("click", async () => {
     const res = await fetch(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(player.name)}`);
     const data = await res.json();
     
-    console.log(player.name, data); // debug için
-    
     if (!Array.isArray(data) || data.length !== 11) {
       alert(`${player.name} adlı oyuncunun sahaya yerleştirdiği oyuncu sayısı 11 değil!`);
       return;
     }
   }
-
   // Tüm kullanıcılar 11 kişiyse yönlendir
   window.location.href = "trade.html";
 });

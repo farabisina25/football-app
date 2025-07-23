@@ -212,8 +212,6 @@ html, body {
   border-top: 2px solid #ffffff33;
 }
 
-
-
 .user-link {
   background: linear-gradient(145deg, #ffffff, #e7f7ec);
   color: #2c6c2f;
@@ -284,3 +282,38 @@ html, body {
 #slot9  { top: 140px; left: 20px; }
 #slot10 { top: 140px; left: 250px; }
 #slot11 { top: 50px; left: 135px; }
+
+.player-slot:empty {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(0, 0, 0, 0.4);
+  border: 1.5px dashed #ccc;
+  font-style: italic;
+}
+
+.formation-dropdown {
+  position: absolute;
+  top: 10px;
+  right: -180px;
+  background: #4CAF50;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  font-weight: bold;
+  color: #333;
+}
+
+.formation-dropdown label {
+  margin-bottom: 5px;
+}
+
+.formation-dropdown select {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+

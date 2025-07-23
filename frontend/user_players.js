@@ -297,21 +297,13 @@ function applySlotBordersForAllSlots(username, allPlayers) {
 }
 
 function getAdjacentSlots(slotNo) {
-  const adjacencyMap = {
-    1: [2, 3, 4, 5],
-    2: [1, 3, 4],
-    3: [1, 2, 5],
-    4: [2, 6, 9],
-    5: [3, 7, 10],
-    6: [4, 7, 8],
-    7: [5, 6, 8],
-    8: [6, 7, 9, 10, 11],
-    9: [4, 8, 11],
-    10: [5, 8, 11],
-    11: [8, 9, 10],
-  };
-  return adjacencyMap[slotNo] || [];
+  const username = new URLSearchParams(window.location.search).get("username");
+  const formation = localStorage.getItem(`selectedFormation_${username}`) || "4231";
+
+  const map = adjacentSlotsMap[formation];
+  return map?.[slotNo] || [];
 }
+
 
 function calculateChemistryLinks() {
   // Önce tüm kimya sınıflarını temizle
@@ -441,10 +433,15 @@ if (from === "trade") {
   });
 }
 
-
-
 document.addEventListener("DOMContentLoaded", () => {
   const username = new URLSearchParams(window.location.search).get("username");
+  // ⬇️ Her kullanıcıya özel formasyon getir
+  const savedFormation = localStorage.getItem(`selectedFormation_${username}`) || "4231";
+  const selectEl = document.getElementById("formation-select");
+  if (selectEl) {
+    selectEl.value = savedFormation;
+  }
+  changeFormation(savedFormation);
 
   // Slot kutularına sınıf ekle
   for (let i = 1; i <= 11; i++) {
@@ -486,5 +483,186 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 100);
 });
 
+function changeFormation(formation) {
+  const layout = formationLayouts[formation];
+  if (!layout) return;
+
+  for (let i = 1; i <= 11; i++) {
+    const slot = document.getElementById(`slot${i}`);
+    if (slot && layout[i]) {
+      slot.style.top = layout[i].top + "px";
+      slot.style.left = layout[i].left + "px";
+    }
+  }
+  // ✅ Her kullanıcıya özel dizilişi kaydet
+  const username = new URLSearchParams(window.location.search).get("username");
+  if (username) {
+    localStorage.setItem(`selectedFormation_${username}`, formation);
+  }
+
+  calculateChemistryLinks(); // Kimya yeniden hesaplanı
+}
+
+const formationLayouts = {
+  "4231": {
+    1: { top: 550, left: 135 },
+    2: { top: 470, left: 60 },
+    3: { top: 470, left: 210 },
+    4: { top: 410, left: 21 },
+    5: { top: 410, left: 250 },
+    6: { top: 310, left: 39 },
+    7: { top: 310, left: 231 },
+    8: { top: 230, left: 135 },
+    9: { top: 140, left: 20 },
+    10:{ top: 140, left: 250 },
+    11:{ top: 50,  left: 135 }
+  },
+  "433": {
+    1: { top: 550, left: 135 },
+    2: { top: 470, left: 60 },
+    3: { top: 470, left: 210 },
+    4: { top: 410, left: 21 },
+    5: { top: 410, left: 250 },
+    6: { top: 330, left: 135 },
+    7: { top: 270, left: 39 },
+    8: { top: 270, left: 231 },
+    9: { top: 140, left: 20 },
+    10:{ top: 140, left: 250 },
+    11:{ top: 50,  left: 135 }
+  },
+  "442": {
+    1: { top: 550, left: 135 },
+    2: { top: 470, left: 60 },
+    3: { top: 470, left: 210 },
+    4: { top: 410, left: 21 },
+    5: { top: 410, left: 250 },
+    6: { top: 290, left: 60 },
+    7: { top: 290, left: 210 },
+    8: { top: 210, left: 21 },
+    9: { top: 210, left: 250 },
+    10:{ top: 75, left: 60 },
+    11:{ top: 75, left: 210 }
+  },
+  "343": {
+    1: { top: 550, left: 135 },
+    2: { top: 470, left: 135 },
+    3: { top: 420, left: 50 },
+    4: { top: 420, left: 220 },
+    5: { top: 330, left: 60 },
+    6: { top: 330, left: 210 },
+    7: { top: 250, left: 21 },
+    8: { top: 250, left: 240 },
+    9: { top: 140, left: 20 },
+    10:{ top: 140, left: 250 },
+    11:{ top: 50,  left: 135 }
+  },
+  "532": {
+    1: { top: 550, left: 135 },
+    2: { top: 470, left: 135 },
+    3: { top: 420, left: 50 },
+    4: { top: 420, left: 220 },
+    5: { top: 370, left: 20 },
+    6: { top: 370, left: 250 },
+    7: { top: 270, left: 40 },
+    8: { top: 270, left: 230 },
+    9: { top: 190, left: 135 },
+    10:{ top: 75, left: 60 },
+    11:{ top: 75, left: 210 }
+  },
+  "352": {
+    1: { top: 550, left: 135 },
+    2: { top: 470, left: 135 },
+    3: { top: 420, left: 50 },
+    4: { top: 420, left: 220 },
+    5: { top: 330, left: 60 },
+    6: { top: 330, left: 210 },
+    7: { top: 250, left: 21 },
+    8: { top: 250, left: 240 },
+    9: { top: 170, left: 135 },
+    10:{ top: 75, left: 60 },
+    11:{ top: 75, left: 210 }
+  }
+};
+
+const adjacentSlotsMap = {
+  "4231": {
+    1: [2, 3, 4, 5],
+    2: [1, 3, 4],
+    3: [1, 2, 5],
+    4: [2, 6, 9],
+    5: [3, 7, 10],
+    6: [4, 7, 8],
+    7: [5, 6, 8],
+    8: [6, 7, 9, 10, 11],
+    9: [4, 8, 10, 11],
+    10: [5, 8, 9, 11],
+    11: [8, 9, 10]
+  },
+  "433": {
+    1: [2, 3, 4, 5],
+    2: [1, 3, 4],
+    3: [1, 2, 5],
+    4: [2, 6, 7, 9],
+    5: [3, 6, 8, 10],
+    6: [4, 5, 7, 8],
+    7: [4, 6, 8, 9],
+    8: [5, 6, 7, 10],
+    9: [7, 10, 11],
+    10: [8, 9, 11],
+    11: [9, 10]
+  },
+  "442": {
+    1: [2, 3, 4, 5],
+    2: [1, 3, 4],
+    3: [1, 2, 5],
+    4: [2, 6, 7, 8],
+    5: [3, 6, 7, 9],
+    6: [4, 5, 7, 8],
+    7: [4, 5, 6, 9],
+    8: [4, 6, 10],
+    9: [5, 7, 11],
+    10: [8, 11],
+    11: [9, 10]
+  },
+  "343": {
+    1: [2, 3, 4],
+    2: [1, 3, 4],
+    3: [1, 2, 4, 5, 6],
+    4: [1, 2, 3, 5, 6],
+    5: [3, 4, 6, 7],
+    6: [3, 4, 5, 8],
+    7: [5, 9],
+    8: [6, 10],
+    9: [7, 10, 11],
+    10: [8, 9, 11],
+    11: [9, 10]
+  },
+  "352": {
+    1: [2, 3, 4],
+    2: [1, 3, 4],
+    3: [1, 2, 4, 5, 6, 7],
+    4: [1, 2, 3, 5, 6, 8],
+    5: [3, 4, 6, 7, 9],
+    6: [3, 4, 5, 8, 9],
+    7: [3, 5, 6, 9],
+    8: [4, 5, 6, 9],
+    9: [5, 6, 7, 8 ,10, 11],
+    10: [9, 11],
+    11: [9, 10]
+  },
+  "532": {
+    1: [2, 3, 4, 5, 6],
+    2: [1, 3, 4],
+    3: [1, 2, 4, 5],
+    4: [1, 2, 3, 6],
+    5: [3, 7],
+    6: [4, 8],
+    7: [5, 8, 9],
+    8: [6, 7, 9],
+    9: [7, 8, 10, 11],
+    10: [9, 11],
+    11: [9, 10]
+  }
+};
 
 

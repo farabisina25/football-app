@@ -222,13 +222,23 @@ function loadOpponentPlayers(opponentName, forUsername) {
     });
 }
 
-
-
 document.getElementById("submit-trades-btn").addEventListener("click", async () => {
-    const preTradeRes = await fetch("http://localhost:8000/football.php?action=get_leaderboard");
-    console.log("Gönderilen trades verisi:", JSON.stringify(trades, null, 2));
+    // 🔁 Kullanıcıları sırayla al
+    const players = JSON.parse(localStorage.getItem("players") || "[]");
 
+    // 🌐 Her kullanıcı için localStorage'dan formasyonu al
+    const params = new URLSearchParams();
+    players.forEach((p, index) => {
+      const formation = localStorage.getItem(`selectedFormation_${p.name}`) || "4231";
+      params.append(`formation${index + 1}`, formation);
+    });
+
+    // 📡 İsteği gönder
+    const preTradeRes = await fetch(`http://localhost:8000/football.php?action=get_leaderboard&${params.toString()}`);
     const preTradeLeaderboard = await preTradeRes.json();
+
+    // ⬇️ Kalan kod aynen devam
+    console.log("Gönderilen trades verisi:", JSON.stringify(trades, null, 2));
     localStorage.setItem("preTradeLeaderboard", JSON.stringify(preTradeLeaderboard));
 
     const tradeContainers = document.querySelectorAll(".trade-container");
