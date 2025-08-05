@@ -268,11 +268,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // Kullanıcı isimlerini sıra koruyarak topla
         $usernames = array_values(array_unique(array_column($lineups, 'username')));
 
-        // Kullanıcı başına formasyon eşle
+        // Tüm kullanıcı formasyonlarını doğrudan isimle eşle
         $userFormations = [];
-        foreach ($usernames as $index => $user) {
-            $userFormations[$user] = $formations[$index] ?? '4231'; // fallback
+        foreach ($_GET as $key => $value) {
+            if (str_starts_with($key, 'formation_')) {
+                $username = urldecode(substr($key, strlen('formation_')));
+                $username = trim($username); // Baş/son boşlukları temizle
+                $userFormations[$username] = $value;
+            }
         }
+        error_log(print_r($userFormations, true));
 
         $leaderboard = [];
 

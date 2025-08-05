@@ -356,9 +356,9 @@ document.getElementById("end-game-btn").addEventListener("click", async () => {
 
 
 document.getElementById("view-lineups-btn").onclick = () => {
-  const firstUsername = players[0].name;
+  const username = players[currentPlayerIndex].name; // sıradaki oyuncu
   localStorage.setItem("fromPage", "index");
-  window.location.href = `user_players.html?username=${encodeURIComponent(firstUsername)}&from=index`;
+  window.location.href = `user_players.html?username=${encodeURIComponent(username)}&from=index`;
 };
 
 document.getElementById("restart-btn").addEventListener("click", () => {

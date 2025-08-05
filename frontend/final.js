@@ -31,19 +31,19 @@ preTrade.forEach((entry, index) => {
   });
 });
 
-// 🔁 Oyuncuların formasyonlarını topla
 const players = JSON.parse(localStorage.getItem("players") || "[]");
-const params = new URLSearchParams();
+const postTradeParams = new URLSearchParams();
 
-players.forEach((p, index) => {
+players.forEach((p) => {
   const formation = localStorage.getItem(`selectedFormation_${p.name}`) || "4231";
-  params.append(`formation${index + 1}`, formation);
+  postTradeParams.append(`formation_${encodeURIComponent(p.name)}`, formation);
 });
 
 // 📡 SONRA leaderboard verisini çek
-fetch(`http://localhost:8000/football.php?action=get_leaderboard&${params.toString()}`)
+fetch(`http://localhost:8000/football.php?action=get_leaderboard&${postTradeParams.toString()}`)
   .then(res => res.json())
   .then(data => {
+    console.log(postTradeParams.toString());
     // Her entry'ye kimya bonuslu final power hesapla ve ekle
     data.forEach(entry => {
       const chemistry = parseInt(localStorage.getItem(`chemistry_after_${entry.username}`)) || 0;

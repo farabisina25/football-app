@@ -228,13 +228,14 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
 
     // 🌐 Her kullanıcı için localStorage'dan formasyonu al
     const params = new URLSearchParams();
-    players.forEach((p, index) => {
+    players.forEach(p => {
       const formation = localStorage.getItem(`selectedFormation_${p.name}`) || "4231";
-      params.append(`formation${index + 1}`, formation);
+      params.append(`formation_${encodeURIComponent(p.name)}`, formation);
     });
 
     // 📡 İsteği gönder
     const preTradeRes = await fetch(`http://localhost:8000/football.php?action=get_leaderboard&${params.toString()}`);
+    console.log(params.toString());
     const preTradeLeaderboard = await preTradeRes.json();
 
     // ⬇️ Kalan kod aynen devam
