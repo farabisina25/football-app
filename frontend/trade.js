@@ -41,10 +41,11 @@ document.getElementById("view-lineups-btn").addEventListener("click", () => {
 });
 
 
-document.getElementById("generate-trade-fields-btn").addEventListener("click", () => {
+document.getElementById("generate-trade-fields-btn").addEventListener("click", async () => {
   const totalTrades = parseInt(document.getElementById("trade-count-input").value);
   const protectCount = parseInt(document.getElementById("protect-count-input").value);
-  if (isNaN(totalTrades) || isNaN(protectCount) || totalTrades <= 0 || protectCount <= 0) {
+
+  if (isNaN(totalTrades) || isNaN(protectCount)) {
     alert("Lütfen geçerli takas ve koruma sayısı giriniz.");
     return;
   }
@@ -52,13 +53,18 @@ document.getElementById("generate-trade-fields-btn").addEventListener("click", (
   localStorage.setItem("totalTrades", totalTrades);
   localStorage.setItem("protectCount", protectCount);
 
+  // ➤ Eğer takas hakkı 0 veya koruma 0 ise: pre-leaderboard'u al ve direkt final'e git
+  if (totalTrades <= 0 || protectCount <= 0) {
+    await precomputeAndGoFinal();
+    return; // trade alanlarını hiç oluşturmadan çık
+  }
+
   // ➤ Input ve butonu gizle
   document.getElementById("trade-count-input").style.display = "none";
   document.getElementById("trade-count-label").style.display = "none";
   document.getElementById("protect-count-input").style.display = "none";
   document.getElementById("protect-count-label").style.display = "none";
   document.getElementById("generate-trade-fields-btn").style.display = "none";
-
 
   // ➤ Takasları Bitir butonunu göster
   document.getElementById("submit-trades-btn").style.display = "block";
@@ -70,13 +76,8 @@ document.getElementById("generate-trade-fields-btn").addEventListener("click", (
     const column = document.createElement("div");
     column.className = "user-trade-column";
     column.setAttribute("data-username", player.name);
-    if (isNaN(totalTrades) || isNaN(protectCount) || totalTrades <= 0 || protectCount <= 0) {
-      alert("Lütfen geçerli takas ve koruma sayısı giriniz.");
-      return;
-    }
 
-
-    // 🟢 Koruma Alanı
+    // Koruma alanı
     const protectDiv = document.createElement("div");
     protectDiv.className = "trade-container";
     protectDiv.innerHTML = `
@@ -89,6 +90,7 @@ document.getElementById("generate-trade-fields-btn").addEventListener("click", (
     column.appendChild(protectDiv);
     loadTeamPlayers(player.name, 'protect');
 
+    // Takas alanları
     players.filter(p => p.name !== player.name).forEach(opponent => {
       for (let t = 0; t < totalTrades; t++) {
         const tradeDiv = document.createElement("div");
@@ -103,15 +105,16 @@ document.getElementById("generate-trade-fields-btn").addEventListener("click", (
         `;
         column.appendChild(tradeDiv);
 
-        loadOpponentPlayers(opponent.name, player.name);  
+        loadOpponentPlayers(opponent.name, player.name);
       }
     });
 
-
-    loadTeamPlayers(player.name, 'exchange'); // takas için kendi oyuncuları yükle
+    loadTeamPlayers(player.name, 'exchange');
     container.appendChild(column);
   });
 });
+
+
 
 
 
@@ -145,6 +148,27 @@ function loadTeamPlayers(username, type) {
 }
 
 
+async function precomputeAndGoFinal() {
+  const players = JSON.parse(localStorage.getItem("players") || "[]");
+  const params = new URLSearchParams();
+
+  players.forEach(p => {
+    const formation = localStorage.getItem(`selectedFormation_${p.name}`) || "4231";
+    params.append(`formation_${encodeURIComponent(p.name)}`, formation);
+  });
+
+  try {
+    const preTradeRes = await fetch(`http://localhost:8000/football.php?action=get_leaderboard&${params.toString()}`);
+    const preTradeLeaderboard = await preTradeRes.json();
+    localStorage.setItem("preTradeLeaderboard", JSON.stringify(preTradeLeaderboard));
+    // İsteğe bağlı: tradeSummary vs. temizlemek istersen burada yapabilirsin
+    // localStorage.removeItem("tradeSummary");
+    window.location.href = "final.html";
+  } catch (err) {
+    console.error("Pre-trade leaderboard alınırken hata:", err);
+    alert("Skor tablosu alınırken bir hata oluştu. Lütfen tekrar deneyin.");
+  }
+}
 
 
 function showSummary(summaries) {

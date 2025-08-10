@@ -101,8 +101,8 @@
     startBtn.onclick = () => {
       localStorage.clear();
       const validPlayers = players.filter(Boolean);
-      if (validPlayers.length === 0) {
-        alert("En az bir kullanıcı adı girilmelidir.");
+      if (validPlayers.length < 2){
+        alert("En az iki kullanıcı adı girilmelidir.");
         return;
       }
       localStorage.setItem('players', JSON.stringify(validPlayers));
