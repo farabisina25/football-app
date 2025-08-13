@@ -246,6 +246,17 @@ function loadOpponentPlayers(opponentName, forUsername) {
     });
 }
 
+async function fetchJsonSafe(url, options) {
+  const res = await fetch(url, options);
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch (e) {
+    console.error("JSON parse edilemedi. Ham cevap:", text);
+    throw e;
+  }
+}
+
+
 document.getElementById("submit-trades-btn").addEventListener("click", async () => {
     // 🔁 Kullanıcıları sırayla al
     const players = JSON.parse(localStorage.getItem("players") || "[]");
@@ -258,9 +269,8 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
     });
 
     // 📡 İsteği gönder
-    const preTradeRes = await fetch(`http://localhost:8000/football.php?action=get_leaderboard&${params.toString()}`);
-    console.log(params.toString());
-    const preTradeLeaderboard = await preTradeRes.json();
+    const preTradeLeaderboard = await fetchJsonSafe(`http://localhost:8000/football.php?action=get_leaderboard&${params.toString()}`);
+
 
     // ⬇️ Kalan kod aynen devam
     console.log("Gönderilen trades verisi:", JSON.stringify(trades, null, 2));

@@ -76,7 +76,24 @@ fetch(`http://localhost:8000/football.php?action=get_leaderboard&${postTradePara
   });
 
 // 🔁 Reset
-document.getElementById("restart-btn")?.addEventListener("click", () => {
-  localStorage.clear();
-  window.location.href = "start.html";
+document.getElementById("restart-btn")?.addEventListener("click", async () => {
+  try {
+    localStorage.clear();
+
+    // Önce oyunla ilgili tabloları temizle
+    await fetch("http://localhost:8000/football.php?action=reset_game")
+      .then(res => res.json());
+
+    // Ardından teams tablosunu temizle
+    await fetch("http://localhost:8000/football.php?action=teams_truncate", {
+      method: "DELETE"
+    }).then(res => res.json());
+
+    // Bittiğinde başlangıç sayfasına dön
+    window.location.href = "start.html";
+
+  } catch (err) {
+    console.error("Sunucu hatası:", err);
+    alert("Tablolar temizlenemedi.");
+  }
 });

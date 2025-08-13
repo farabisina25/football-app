@@ -98,32 +98,50 @@
     }
 
 
-    startBtn.onclick = () => {
-      localStorage.clear();
-      const validPlayers = players.filter(Boolean);
-      if (validPlayers.length < 2){
-        alert("En az iki kullanıcı adı girilmelidir.");
-        return;
+    startBtn.onclick = async () => {
+      startBtn.disabled = true; // Çoklu tıklamayı engelle
+
+      try {
+        // 1) Oyuncu sayısı kontrolü
+        const validPlayers = players.filter(Boolean);
+        if (validPlayers.length < 2) {
+          alert("En az iki kullanıcı adı girilmelidir.");
+          startBtn.disabled = false;
+          return;
+        }
+
+        // 2) teams tablosu boş mu kontrol et
+        const teamsRes = await fetch("http://localhost:8000/football.php?action=get_teams");
+        const teams = await teamsRes.json();
+
+        if (!Array.isArray(teams) || teams.length === 0) {
+          alert("Takımlar listesi boş: önce çarkı oluşturmanız gerekiyor (Takımları ekleyin).");
+          startBtn.disabled = false;
+          return;
+        }
+
+        // 3) LocalStorage’a oyuncuları yaz
+        localStorage.clear();
+        localStorage.setItem('players', JSON.stringify(validPlayers));
+
+        // 4) reset_game çağır
+        const resetRes = await fetch("http://localhost:8000/football.php?action=reset_game");
+        const resetData = await resetRes.json();
+
+        if (!resetData.success) {
+          alert("Veritabanı sıfırlanamadı: " + (resetData.error || "Bilinmeyen hata"));
+          startBtn.disabled = false;
+          return;
+        }
+
+        // 5) Oyuna geç
+        window.location.href = 'index.html';
+
+      } catch (err) {
+        console.error(err);
+        alert("Sunucu hatası: " + (err?.message || err));
+        startBtn.disabled = false;
       }
-      localStorage.setItem('players', JSON.stringify(validPlayers));
-
-
-      // Önce tabloları temizle
-      fetch("http://localhost:8000/football.php?action=reset_game")
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            // Tablolar temizlendiyse oyunu başlat
-            localStorage.setItem('players', JSON.stringify(validPlayers));
-            window.location.href = 'index.html';
-          } else {
-            alert("Veritabanı sıfırlanamadı: " + (data.error || "Bilinmeyen hata"));
-          }
-        })
-        .catch(err => {
-          alert("Sunucu hatası: " + err.message);
-        });
     };
-
 
     renderPlayers();

@@ -6,9 +6,7 @@ document.getElementById('user-title').innerText = `${username} - Seçtiği Oyunc
 // Kadroda yer alan oyuncuların isimlerini burada tutacağız
 let existingLineupNames = [];
 
-// 1. Önce kadroyu alalım
-fetch(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(username)}`)
-  .then(response => response.json())
+fetchJsonSafe(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(username)}`)
   .then(lineup => {
     if (Array.isArray(lineup)) {
       existingLineupNames = lineup.map(p => p.player_name.trim());
@@ -17,56 +15,55 @@ fetch(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURI
         if (slot) {
           const position = player.position?.toUpperCase() || "POZİSYON YOK";
           slot.innerText = `${player.player_name} - ${position}`;
-          slot.setAttribute("data-position", position); // sadece pozisyonu kaydet
+          slot.setAttribute("data-position", position);
         }
       });
     }
   })
-
-
-  // 2. Ardından oyuncu listesini yükleyelim
-.then(() => {
-  return fetch(`http://localhost:8000/football.php?action=user_players&username=${encodeURIComponent(username)}`);
-})
-.then(response => response.json())
-.then(data => {
-  const list = document.getElementById('player-list');
-  if (!Array.isArray(data) || data.length === 0) {
-    list.innerHTML = '<p>Bu kullanıcı henüz oyuncu seçmemiş.</p>';
-    return;
-  }
-
-  const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
-
-  data.sort((a, b) => {
-    const posA = (a.position || '').toUpperCase();
-    const posB = (b.position || '').toUpperCase();
-    const indexA = positionOrder.indexOf(posA);
-    const indexB = positionOrder.indexOf(posB);
-    return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
-  });
-
-  data.forEach((player, index) => {
-    const rawName = player.player_name?.trim();
-    const position = player.position?.toUpperCase() || "POZİSYON YOK";
-
-    if (existingLineupNames.includes(rawName)) return;
-
-    const div = document.createElement('div');
-    div.className = 'player-item';
-    div.id = `player-${index + 1}`;
-    div.draggable = true;
-    div.ondragstart = drag;
-
-    div.innerText = `${rawName} - ${position}`;
-    div.setAttribute("data-position", position);
-    div.setAttribute("data-team", player.team_id || "");
-    list.appendChild(div);
-  });
-}).catch(err => {
+  .then(() => fetchJsonSafe(`http://localhost:8000/football.php?action=user_players&username=${encodeURIComponent(username)}`))
+  .then(data => {
+    const list = document.getElementById('player-list');
+    if (!Array.isArray(data) || data.length === 0) {
+      list.innerHTML = '<p>Bu kullanıcı henüz oyuncu seçmemiş.</p>';
+      return;
+    }
+    const positionOrder = ['ST','LW','RW','LM','RM','CAM','CM','CDM','LB','CB','RB','GK'];
+    data.sort((a,b) => {
+      const posA = (a.position||'').toUpperCase();
+      const posB = (b.position||'').toUpperCase();
+      const indexA = positionOrder.indexOf(posA);
+      const indexB = positionOrder.indexOf(posB);
+      return (indexA===-1?999:indexA) - (indexB===-1?999:indexB);
+    });
+    data.forEach((player, index) => {
+      const rawName = player.player_name?.trim();
+      const position = player.position?.toUpperCase() || "POZİSYON YOK";
+      if (existingLineupNames.includes(rawName)) return;
+      const div = document.createElement('div');
+      div.className = 'player-item';
+      div.id = `player-${index + 1}`;
+      div.draggable = true;
+      div.ondragstart = drag;
+      div.innerText = `${rawName} - ${position}`;
+      div.setAttribute("data-position", position);
+      div.setAttribute("data-team", player.team_id || "");
+      list.appendChild(div);
+    });
+  })
+  .catch(err => {
     console.error(err);
     document.getElementById('player-list').innerHTML = '<p>Oyuncular yüklenemedi.</p>';
   });
+
+
+async function fetchJsonSafe(url, options) {
+  const res = await fetch(url, options);
+  const txt = await res.text();
+  try { return JSON.parse(txt); }
+  catch (e) { console.error("JSON parse edilemedi. Ham cevap:", txt); throw e; }
+}
+
+
 
 function sortPlayerList() {
   const list = document.getElementById("player-list");
@@ -457,9 +454,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const allPlayers = JSON.parse(localStorage.getItem("players") || "[]");
   applySlotBordersForAllSlots(username, allPlayers);
 
-  // Ardından kadroyu yükle
-  fetch(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(username)}`)
-  .then(response => response.json())
+ fetchJsonSafe(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(username)}`)
   .then(lineup => {
     if (Array.isArray(lineup)) {
       existingLineupNames = lineup.map(p => p.player_name.trim());
@@ -469,14 +464,16 @@ document.addEventListener("DOMContentLoaded", () => {
           const position = player.position?.toUpperCase() || "POZİSYON YOK";
           slot.innerText = `${player.player_name} - ${position}`;
           slot.setAttribute("data-position", position);
-          slot.setAttribute("data-team", player.team_id); // ✅ EKLENDİ
+          slot.setAttribute("data-team", player.team_id || "");
         }
       });
       updateSlotDraggables();
     }
-  }).catch(err => {
-      console.error("Kadro yüklenirken hata:", err);
-    });
+  })
+  .catch(err => {
+    console.error("Kadro yüklenirken hata:", err);
+  });
+
 
   setTimeout(() => {
     calculateChemistryLinks();

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Takım Ayarları</title>
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <div class="wrapper">
+    <header class="topbar">
+      <h1>Takımları Seç</h1>
+      <a href="start.html" class="back">← Oyuna Dön</a>
+    </header>
+
+    <main class="grid">
+      <!-- SOL: full_teams -->
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Bütün Takımlar</h2>
+          <div class="filters">
+            <label for="leagueSelect">Lig:</label>
+            <select id="leagueSelect">
+              <option value="">Tümü</option>
+            </select>
+          </div>
+        </div>
+        <ul id="fullTeamsList" class="list"></ul>
+      </section>
+
+      <!-- SAĞ: teams (oyunda kullanılacak) -->
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Seçilen Takımlar</h2>
+          <button id="clearTeams" class="danger small">Tümünü Temizle</button>
+        </div>
+        <ul id="teamsList" class="list"></ul>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API = "http://localhost:8000/football.php"; // kendi yolun
+  </script>
+  <script src="settings.js"></script>
+</body>
+</html>

@@ -137,6 +137,32 @@ input[type="text"] {
   box-shadow: 0 0 20px rgba(0, 123, 255, 1);
 }
 
+.button-group {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+#edit-teams {
+  margin-top: 20px;
+  font-size: 16px;
+  background-color: #ffc107;
+  color: #000;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(255, 193, 7, 0.6);
+  transition: background-color 0.2s ease-in-out, box-shadow 0.3s ease;
+}
+
+#edit-teams:hover {
+  background-color: #e0a800;
+  box-shadow: 0 0 20px rgba(255, 193, 7, 1);
+}
+
+
 /* Renk seçici özel stil */
 .color-picker-wrapper {
   display: flex;
