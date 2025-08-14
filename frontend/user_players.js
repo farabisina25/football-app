@@ -6,7 +6,7 @@ document.getElementById('user-title').innerText = `${username} - Seçtiği Oyunc
 // Kadroda yer alan oyuncuların isimlerini burada tutacağız
 let existingLineupNames = [];
 
-fetchJsonSafe(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(username)}`)
+/*fetchJsonSafe(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(username)}`)
   .then(lineup => {
     if (Array.isArray(lineup)) {
       existingLineupNames = lineup.map(p => p.player_name.trim());
@@ -53,7 +53,7 @@ fetchJsonSafe(`http://localhost:8000/football.php?action=get_lineup&username=${e
   .catch(err => {
     console.error(err);
     document.getElementById('player-list').innerHTML = '<p>Oyuncular yüklenemedi.</p>';
-  });
+  });*/
 
 
 async function fetchJsonSafe(url, options) {
@@ -301,6 +301,21 @@ function getAdjacentSlots(slotNo) {
   return map?.[slotNo] || [];
 }
 
+function syncSvgSize() {
+  const container = document.getElementById("field-container");
+  const svg = document.getElementById("chemistry-lines");
+  if (!container || !svg) return;
+
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  if (!w || !h) return;
+
+  svg.setAttribute("width", w);
+  svg.setAttribute("height", h);
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+}
+
+
 
 function calculateChemistryLinks() {
   // Önce tüm kimya sınıflarını temizle
@@ -468,16 +483,47 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
       updateSlotDraggables();
+      syncSvgSize();
+      requestAnimationFrame(() => {
+        syncSvgSize();
+        calculateChemistryLinks();
+      });
     }
   })
   .catch(err => {
     console.error("Kadro yüklenirken hata:", err);
   });
 
+  // İlk çizim: layout + görsel yüklendikten sonra
+  const fieldImg = document.getElementById("field-image");
 
-  setTimeout(() => {
+  // 1) Tek yerden başlatıcı
+  const initChemistry = () => {
+    // Önce SVG boyutlarını container'a kilitle
+    syncSvgSize();
+    // Bir frame bekle ki slotların top/left yerleşimi tam otursun
+    requestAnimationFrame(() => {
+      syncSvgSize();
+      calculateChemistryLinks();
+    });
+  };
+
+  // 2) Saha görseli varsa, yüklendiğinde başlat; yoksa hemen başlat
+  if (fieldImg && !fieldImg.complete) {
+    fieldImg.addEventListener("load", initChemistry, { once: true });
+  } else {
+    initChemistry();
+  }
+
+  // 3) Yine de tüm sayfa asset'leri bittiğinde bir kez daha sağlamla
+  window.addEventListener("load", initChemistry, { once: true });
+
+  // (Opsiyonel ama faydalı) resize’da hizayı koru
+  window.addEventListener("resize", () => {
+    syncSvgSize();
     calculateChemistryLinks();
-  }, 100);
+  });
+
 });
 
 function changeFormation(formation) {

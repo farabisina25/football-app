@@ -9,6 +9,7 @@ let selectedTeamIds = new Set();
 async function fetchJSON(url, opts={}) {
   const r = await fetch(url, {
     headers: { "Content-Type":"application/json" },
+    cache: "no-store",
     ...opts
   });
   if (!r.ok) throw new Error(await r.text());
@@ -96,34 +97,102 @@ function renderTeams(rows){
 }
 
 
-fullTeamsListEl.addEventListener("click", async (e)=>{
-  const id = e.target.getAttribute("data-add");
-  if (!id || e.target.disabled) return;
-  try{
-    await fetchJSON(`${API}?action=teams_add`, {
-      method:"POST",
-      body: JSON.stringify({ team_id: Number(id) })
+fullTeamsListEl.addEventListener("click", async (e) => {
+  const btn = e.target.closest('button[data-add]');
+  if (!btn || btn.disabled) return;
+
+  const id = Number(btn.getAttribute("data-add"));
+  if (!id) return;
+
+  // 🔒 Çift tıklamayı engelle
+  btn.disabled = true;
+
+  // ✅ OPTİMİSTİK: Hemen state + UI güncelle
+  const oldText = btn.textContent;
+  const had = selectedTeamIds.has(id);
+  selectedTeamIds.add(id);
+  btn.textContent = "Eklendi";
+  btn.classList.add("disabled"); // varsa CSS'te gri görünüm
+  // not: renderFullTeams() zaten selectedTeamIds’e bakıyor
+
+  try {
+    await fetchJSON(API + "?action=teams_add", {
+      method: "POST",
+      body: JSON.stringify({ team_id: id })
     });
-    await Promise.all([loadTeams(), loadFullTeams()]);  // <-- önemli
-  }catch(err){ alert("Ekleme hatası: " + err.message); }
+
+    // Sunucu gerçek durumu ile yeniden senkronla
+    await loadTeams();      // selectedTeamIds = sunucudan gelen gerçek liste
+    await loadFullTeams();  // soldaki butonları yeni sete göre çiz
+  } catch (err) {
+    // ❌ Hata: optimistik değişiklikleri geri al
+    if (!had) selectedTeamIds.delete(id);
+    btn.textContent = oldText;
+    btn.classList.remove("disabled");
+    btn.disabled = false;
+    alert("Ekleme hatası: " + err.message);
+    return;
+  }
+
+  // Başarılıysa buton disabled kalabilir (zaten eklendi)
 });
 
-teamsListEl.addEventListener("click", async (e)=>{
-  const rid = e.target.getAttribute("data-remove");
+
+// Sil
+teamsListEl.addEventListener("click", async (e) => {
+  const btn = e.target.closest('button[data-remove]');
+  if (!btn) return;
+
+  const rid = Number(btn.getAttribute("data-remove"));
   if (!rid) return;
-  const url = `${API}?action=teams_remove&id=${encodeURIComponent(rid)}`;
-  try{
-    await fetchJSON(url, { method:"DELETE" });
-    await Promise.all([loadTeams(), loadFullTeams()]);  // <-- önemli
-  }catch(err){ alert("Silme hatası: " + err.message); }
+
+  btn.disabled = true;
+
+  // ✅ OPTİMİSTİK: hemen set’ten çıkar
+  const had = selectedTeamIds.has(rid);
+  if (had) selectedTeamIds.delete(rid);
+
+  try {
+    await fetchJSON(API + "?action=teams_remove&id=" + encodeURIComponent(rid), { method: "DELETE" });
+    await loadTeams();
+    await loadFullTeams();
+  } catch (err) {
+    // ❌ geri al
+    if (had) selectedTeamIds.add(rid);
+    btn.disabled = false;
+    alert("Silme hatası: " + err.message);
+  }
 });
 
-clearBtn.addEventListener("click", async ()=>{ 
-  try{
-    await fetchJSON(`${API}?action=teams_truncate`, { method:"DELETE" });
-    await Promise.all([loadTeams(), loadFullTeams()]);  // <-- önemli
-  }catch(err){ alert("Temizleme hatası: " + err.message); }
+// Tümünü Temizle
+clearBtn.addEventListener("click", async () => {
+  clearBtn.disabled = true;
+  const old = clearBtn.textContent;
+  clearBtn.textContent = "Temizleniyor...";
+
+  // ✅ OPTİMİSTİK: set’i boşalt, UI hemen boş görünsün
+  const backup = new Set(selectedTeamIds);
+  selectedTeamIds.clear();
+  renderTeams([]);            // sağ paneli anında boşalt (isteğe bağlı)
+  await loadFullTeams();      // soldaki butonlar aktifleşsin
+
+  try {
+    await fetchJSON(API + "?action=teams_truncate", { method: "DELETE" });
+    await loadTeams();
+    await loadFullTeams();
+  } catch (err) {
+    // ❌ geri al
+    selectedTeamIds = backup;
+    await loadTeams();
+    await loadFullTeams();
+    alert("Temizleme hatası: " + err.message);
+  } finally {
+    clearBtn.disabled = false;
+    clearBtn.textContent = old;
+  }
 });
+
+
 
 // Lig değişince sol listeyi yenile
 leagueSelect.addEventListener("change", loadFullTeams);
