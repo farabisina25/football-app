@@ -2,7 +2,7 @@
     const startBtn = document.getElementById('start-game');
 
     let maxPlayers = 4;
-    let players = new Array(maxPlayers).fill(null); // Şimdilik boş
+    let players = JSON.parse(localStorage.getItem('players')) || new Array(maxPlayers).fill(null);
 
 
     function renderPlayers() {
@@ -88,6 +88,7 @@
         }
 
         players[index] = { name: username, color: color };
+        localStorage.setItem('players', JSON.stringify(players));
         renderPlayers();
       };
 
