@@ -489,6 +489,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
+    if ($action === 'get_full_teams_by_ids') {
+        $idsParam = trim($_GET['ids'] ?? '');
+        if ($idsParam === '') {
+            echo json_encode([]); exit;
+        }
+
+        // ids= "1,3,4,5" gibi gelir → filtrele, int'e çevir, tekrarları kaldır
+        $ids = array_filter(array_unique(array_map(function($v){
+            return (int)trim($v);
+        }, explode(',', $idsParam))), function($x){ return $x > 0; });
+
+        if (empty($ids)) { echo json_encode([]); exit; }
+
+        // Placeholder'ları hazırla
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+        $sql = "SELECT team_id, team_name, league 
+                FROM full_teams 
+                WHERE team_id IN ($placeholders)
+                ORDER BY team_name";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($ids);
+
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
 }
 
 
@@ -649,6 +676,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             echo json_encode(['success'=>true]);
         } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['error'=>$e->getMessage()]);
+        }
+        exit;
+    }
+
+    // POST: teams_add_bulk -> Birden fazla team_id'yi tek seferde teams tablosuna ekle
+    if (isset($_GET['action']) && $_GET['action'] === 'teams_add_bulk') {
+        // Beklenen payload: { "team_ids": [1,3,4,5,...] }
+        $teamIds = $input['team_ids'] ?? null;
+        if (!is_array($teamIds) || empty($teamIds)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'team_ids (array) gerekli']); 
+            exit;
+        }
+
+        // Temizle, int'e çevir, tekrarları at
+        $ids = array_filter(array_unique(array_map('intval', $teamIds)), function($x){ return $x > 0; });
+        if (empty($ids)) { echo json_encode(['success'=>true, 'inserted'=>0]); exit; }
+
+        try {
+            $pdo->beginTransaction();
+
+            // full_teams'tan verileri çek
+            $in = implode(',', array_fill(0, count($ids), '?'));
+            $stmt = $pdo->prepare("
+                SELECT team_id, team_name
+                FROM full_teams
+                WHERE team_id IN ($in)
+            ");
+            $stmt->execute($ids);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($rows)) {
+                $pdo->commit();
+                echo json_encode(['success'=>true, 'inserted'=>0]); 
+                exit;
+            }
+
+            // teams tablosuna upsert
+            $ins = $pdo->prepare("
+                INSERT INTO teams (id, team_name)
+                VALUES (?, ?)
+                ON DUPLICATE KEY UPDATE team_name = VALUES(team_name)
+            ");
+
+            $count = 0;
+            foreach ($rows as $r) {
+                $ins->execute([(int)$r['team_id'], $r['team_name']]);
+                $count++;
+            }
+
+            $pdo->commit();
+            echo json_encode(['success'=>true, 'inserted'=>$count]);
+        } catch (PDOException $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
             http_response_code(500);
             echo json_encode(['error'=>$e->getMessage()]);
         }

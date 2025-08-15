@@ -1,4 +1,9 @@
 const players = JSON.parse(localStorage.getItem('players')) || [];
+//const SLICE_COLORS = ["#2ecc71", "#27ae60", "#1abc9c", "#16a085", "#2e86de"];
+const SLICE_COLORS = [
+  "#2ecc71", "#27ae60", "#1abc9c", "#16a085", "#2e86de",
+  "#8e44ad", "#f39c12", "#e67e22", "#e74c3c", "#95a5a6"
+];
 
 if (!Array.isArray(players) || players.length === 0) {
   alert("Kullanıcı bilgisi bulunamadı. Lütfen giriş sayfasından başlayın.");
@@ -83,7 +88,7 @@ function drawWheel() {
     ctx.moveTo(radius, radius);
     ctx.arc(radius, radius, radius, angleStart, angleStart + sliceAngle);
     ctx.closePath();
-    ctx.fillStyle = index % 2 === 0 ? "#4caf50" : "#81c784";
+    ctx.fillStyle = SLICE_COLORS[index % SLICE_COLORS.length];
     ctx.fill();
 
     ctx.save();
@@ -92,6 +97,9 @@ function drawWheel() {
     ctx.textAlign = "right";
     ctx.fillStyle = "#fff";
     ctx.font = "bold 16px sans-serif";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.strokeText(team.team_name, radius - 10, 5);
     ctx.fillText(team.team_name, radius - 10, 5);
     ctx.restore();
   });
@@ -129,16 +137,16 @@ function drawRotatedWheel(angleOffset, highlightIndex = -1) {
     ctx.arc(radius, radius, radius, angleStart, angleEnd);
     ctx.closePath();
 
-    // 🎨 Seçilen takımsa parlak renk ve glow efekti
     if (index === highlightIndex) {
-      ctx.fillStyle = "#ffeb3b"; // Sarı gibi bir parlak renk
+      ctx.fillStyle = "#ffeb3b";         // seçili glow aynı kalsın
       ctx.shadowColor = "#ffc107";
       ctx.shadowBlur = 30;
     } else {
-      ctx.fillStyle = index % 2 === 0 ? "#4caf50" : "#81c784";
+      ctx.fillStyle = SLICE_COLORS[index % SLICE_COLORS.length];
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
     }
+
 
     ctx.fill();
 
@@ -146,8 +154,11 @@ function drawRotatedWheel(angleOffset, highlightIndex = -1) {
     ctx.translate(radius, radius);
     ctx.rotate(angleStart + sliceAngle / 2);
     ctx.textAlign = "right";
-    ctx.fillStyle = "#1b5e20";
+    ctx.fillStyle = "#fff";
     ctx.font = "bold 16px sans-serif";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.strokeText(team.team_name, radius - 10, 5);
     ctx.fillText(team.team_name, radius - 10, 5);
     ctx.restore();
   });

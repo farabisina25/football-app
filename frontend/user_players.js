@@ -5,8 +5,7 @@ document.getElementById('user-title').innerText = `${username} - Seçtiği Oyunc
 
 // Kadroda yer alan oyuncuların isimlerini burada tutacağız
 let existingLineupNames = [];
-
-/*fetchJsonSafe(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(username)}`)
+fetchJsonSafe(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(username)}`)
   .then(lineup => {
     if (Array.isArray(lineup)) {
       existingLineupNames = lineup.map(p => p.player_name.trim());
@@ -53,7 +52,7 @@ let existingLineupNames = [];
   .catch(err => {
     console.error(err);
     document.getElementById('player-list').innerHTML = '<p>Oyuncular yüklenemedi.</p>';
-  });*/
+  });
 
 
 async function fetchJsonSafe(url, options) {

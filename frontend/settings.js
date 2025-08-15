@@ -16,10 +16,8 @@ async function fetchJSON(url, opts={}) {
   return r.json();
 }
 
-// Ligleri doldur (full_teams’ten distinct league)
 async function loadLeagues() {
   const leagues = await fetchJSON(`${API}?action=get_full_teams_leagues`);
-  // leagues = [{league:"Premier League"}, ...]
   leagues.forEach(l => {
     if (!l.league) return;
     const opt = document.createElement("option");
@@ -27,16 +25,33 @@ async function loadLeagues() {
     opt.textContent = l.league;
     leagueSelect.appendChild(opt);
   });
+
+  // 🔹 Özel filtre: Şampiyonlar Ligi Son 16
+  const clOpt = document.createElement("option");
+  clOpt.value = "__ucl16";
+  clOpt.textContent = "Şampiyonlar Ligi Son 16";
+  leagueSelect.appendChild(clOpt);
 }
 
-// Soldaki liste (full_teams)
+
 async function loadFullTeams() {
   const league = leagueSelect.value;
-  const url = league ? `${API}?action=get_full_teams&league=${encodeURIComponent(league)}`
-                     : `${API}?action=get_full_teams`;
-  const data = await fetchJSON(url);
+
+  let data = [];
+  if (league === "__ucl16") {
+    // Özel ID listesi
+    const ids = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 17, 50, 49, 54, 29];
+    data = await fetchJSON(`${API}?action=get_full_teams_by_ids&ids=${ids.join(",")}`);
+  } else {
+    const url = league
+      ? `${API}?action=get_full_teams&league=${encodeURIComponent(league)}`
+      : `${API}?action=get_full_teams`;
+    data = await fetchJSON(url);
+  }
+
   renderFullTeams(data);
 }
+
 
 function renderFullTeams(rows){
   fullTeamsListEl.innerHTML = "";
@@ -95,6 +110,40 @@ function renderTeams(rows){
     teamsListEl.appendChild(li);
   });
 }
+
+const addAllBtn = document.getElementById("addAllBtn");
+
+addAllBtn.addEventListener("click", async () => {
+  // Sol listedeki tüm eklenebilir takımlar
+  const addButtons = fullTeamsListEl.querySelectorAll("button[data-add]:not(:disabled)");
+  if (!addButtons.length) {
+    alert("Eklenecek takım bulunamadı.");
+    return;
+  }
+
+  const ids = Array.from(addButtons).map(btn => Number(btn.getAttribute("data-add")));
+  if (!ids.length) return;
+
+  addAllBtn.disabled = true;
+  addAllBtn.textContent = "Ekleniyor...";
+
+  try {
+    // API'ye toplu gönderim (tek tek POST atmak yerine toplu array göndermek daha hızlı olur)
+    await fetchJSON(API + "?action=teams_add_bulk", {
+      method: "POST",
+      body: JSON.stringify({ team_ids: ids })
+    });
+
+    await loadTeams();
+    await loadFullTeams();
+  } catch (err) {
+    alert("Toplu ekleme hatası: " + err.message);
+  } finally {
+    addAllBtn.disabled = false;
+    addAllBtn.textContent = "Hepsini Ekle";
+  }
+});
+
 
 
 fullTeamsListEl.addEventListener("click", async (e) => {
