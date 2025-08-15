@@ -7,11 +7,41 @@
 </head>
 <body>
   <div class="main-content">
+    <button id="help-btn" class="help-button" aria-haspopup="dialog" aria-controls="help-modal" aria-label="Oyunu Anlat">
+      Nasıl Oynanır?
+    </button>
     <h1>Kullanıcıları Ekle</h1>
     <div id="players-container"></div>
     <div class="button-group">
       <button id="start-game">Oyuna Başla</button>
       <button id="edit-teams" onclick="window.location.href='settings.html'">Çarkı Oluştur ⚙️</button>
+    </div>
+  </div>
+
+  <!-- Yardım Modal -->
+  <div id="help-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title" aria-hidden="true">
+    <div class="modal-content" role="document">
+      <button class="modal-close" id="help-close" aria-label="Kapat">×</button>
+      <h2 id="help-title">Nasıl Oynanır?</h2>
+      <div class="modal-body" tabindex="0">
+        <p><strong>1. Kullanıcı Ekleme:</strong> “Ekle” butonuna basarak oyuncu adlarını ve renklerini belirleyin. En az iki kullanıcı gerekir.</p>
+        <p><strong>2. Takımlar (Çark):</strong> “Çarkı Oluştur ⚙️” ile takımları düzenleyin. Çarkta görünecek takımlar bu ekrandan yönetilir.</p>
+        <p><strong>3. Oyuna Başla:</strong> “Oyuna Başla” dediğinizde oyun ekranına yönlendirilirsiniz.</p>
+        <p><strong>4. Sıra Mantığı:</strong> Her turda yalnızca sırası gelen user için çark çevrilir. Sistem otomatik kontrol eder.</p>
+        <p><strong>5. Kadro Kurma:</strong> Seçtiğiniz takımdan oyuncuları alarak 11 kişilik kadronuzu oluşturursunuz.
+          Kodro kurarken aynı takım oyuncuları yakın mevkilerde oynarsa kimya bağı oluşur ve finalde kazanmanıza yardımcı olabilir.
+          Oyuncuları mevkilerine uygun yerlerde oynatırsanız güçlerinin bütün potansiyelini kullanabilirsiniz.
+          Formasyon Seçimi seçtiğiniz mevkilere ve kurmak istediğiniz kimya bağlarına göre seçilebilir.
+          Formasyonlar birbirleri üzerinde üstünlük sağlamazlar!
+        </p>
+        <p><strong>6. Takas Sistemi:</strong> Önce kaç takas yapılacağını ve kaç oyuncu korunacağına karar verilir.
+          Kullanıcılar birbirlerinden habersiz şekilde ve aynı anda simultene şekilde çalmak istedikleri oyuncuyu, kadrolarından vermek istedikleri oyuncuyu
+          ve korumak istediği oyuncuları seçer. Bunları gerekli boşluklara yazarak takasları otamatikman sisteme yaptırıp, 
+          takas sonrası kadrolarınızı tekrardan baştan şekillendirebilirsiniz. Takas sırasında korunan oyuncular çalınamaz ve 
+          aynı oyuncuyu birden fazla kişi çalmaya çalışırsa takaslar geçersiz sayılır, oyuncu takımında kalır.
+        </p>
+        <p><strong>7. Final & Skor:</strong> Kimya/güç hesapları ile leaderboard oluşur. Takas öncesi ve takas sonrası için kadroların leaderboardu oluşur.</p>
+      </div>
     </div>
   </div>
 

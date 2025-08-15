@@ -205,3 +205,119 @@ input[type="text"] {
   border: none;
   border-radius: 6px;
 }
+
+/* Modal (tam ekran) */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: none;              /* JS ile aç-kapa */
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 24px;
+}
+
+/* Açıkken görünür */
+.modal.show { display: flex; }
+
+/* Modal içerik kutusu */
+.modal-content {
+  width: min(920px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(8px);
+  border: 1px solid #ffffff22;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+  padding: 28px 22px 22px;
+  animation: modalIn .18s ease-out;
+  color: #f1f1f1;
+}
+
+/* Başlık ve gövde */
+.modal-content h2 {
+  margin: 0 0 10px 0;
+  font-size: 1.6rem;
+  letter-spacing: 0.3px;
+  color: #eafecc;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.modal-body {
+  line-height: 1.6;
+  font-size: 0.98rem;
+}
+.modal-body p {
+  margin: 10px 0;
+}
+
+/* Kapat butonu */
+.modal-close {
+  position: sticky; /* başta sabit dursun */
+  top: 0;
+  float: right;
+  margin-left: auto;
+  border: none;
+  background: #ffffff12;
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s ease, transform .1s ease;
+}
+.modal-close:hover { background: #ffffff22; }
+.modal-close:active { transform: scale(0.98); }
+
+@keyframes modalIn {
+  from { transform: translateY(8px) scale(0.99); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+
+/* Küçük ekran uyarlamaları */
+@media (max-width: 520px) {
+  .modal-content { padding: 22px 16px 16px; }
+  .modal-content h2 { font-size: 1.3rem; }
+}
+
+.main-content {
+  position: relative;
+}
+
+/* Butonun içinde "Nasıl Oynanır?" yazacak */
+.help-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #ffffff33;
+  background: linear-gradient(145deg, #2e6b2e, #1f4b1f);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap; /* Yazı tek satır kalsın */
+  box-shadow: 0 4px 10px rgba(0,0,0,0.35), inset 0 0 6px rgba(255,255,255,0.15);
+  transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
+  z-index: 2;
+}
+
+.help-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.45);
+}
+
+.help-button:active {
+  transform: scale(0.95);
+}
+
+
+
+
+

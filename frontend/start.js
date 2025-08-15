@@ -98,6 +98,46 @@
       input.focus();
     }
 
+    // Yardım Modal kontrolü
+    (function setupHelpModal() {
+      const helpBtn   = document.getElementById('help-btn');
+      const modal     = document.getElementById('help-modal');
+      const closeBtn  = document.getElementById('help-close');
+      const body      = document.querySelector('body');
+
+      if (!helpBtn || !modal || !closeBtn) return;
+
+      const openModal = () => {
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        body.style.overflow = 'hidden';       // arka plan kaymasın
+        // odak
+        const focusable = modal.querySelector('.modal-body');
+        focusable && focusable.focus();
+      };
+
+      const closeModal = () => {
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        body.style.overflow = '';             // eski haline
+        helpBtn.focus();
+      };
+
+      helpBtn.addEventListener('click', openModal);
+      closeBtn.addEventListener('click', closeModal);
+
+      // Arka plana tıklayınca kapat
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+      });
+
+      // ESC ile kapat
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('show')) {
+          closeModal();
+        }
+      });
+    })();
 
     startBtn.onclick = async () => {
       startBtn.disabled = true; // Çoklu tıklamayı engelle
