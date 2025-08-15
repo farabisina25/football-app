@@ -19,7 +19,7 @@
         if (!players[i]) {
           if (i === firstEmptyIndex) {
             const addBtn = document.createElement('button');
-            addBtn.textContent = 'Add';
+            addBtn.textContent = 'Ekle';
             addBtn.className = 'add-button';
 
             addBtn.onclick = () => showPlayerInputForm(i, card);
