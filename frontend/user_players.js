@@ -1,25 +1,52 @@
+const API = "http://localhost:8000/football.php";
+
 const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get('username');
 const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
 document.getElementById('user-title').innerText = `${username} - Seçtiği Oyuncular`;
 
+const UID_KEY = "user_id";
+let userId = localStorage.getItem(UID_KEY);
+// user_id yoksa üret
+if (!userId) {
+  userId = (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `uid-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  localStorage.setItem(UID_KEY, userId);
+}
+
+function authedFetch(url, options = {}) {
+  const headers = Object.assign({}, options.headers, { "X-User-Id": userId });
+  return fetch(url, { ...options, headers });
+}
+
+// JSON güvenli fetch (tüm çağrılar header’lı)
+async function fetchJsonSafe(url, options = {}) {
+  // içeride authedFetch kullan
+  const res = await authedFetch(url, options);
+  const txt = await res.text();
+  try { return JSON.parse(txt); }
+  catch (e) { console.error("JSON parse edilemedi. Ham cevap:", txt); throw e; }
+}
+
 // Kadroda yer alan oyuncuların isimlerini burada tutacağız
 let existingLineupNames = [];
-fetchJsonSafe(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(username)}`)
+fetchJsonSafe(`${API}?action=get_lineup&username=${encodeURIComponent(username)}`)
   .then(lineup => {
     if (Array.isArray(lineup)) {
-      existingLineupNames = lineup.map(p => p.player_name.trim());
+      existingLineupNames = lineup.map(p => (p.player_name || "").trim());
       lineup.forEach(player => {
         const slot = document.getElementById(`slot${player.slot_no}`);
         if (slot) {
           const position = player.position?.toUpperCase() || "POZİSYON YOK";
           slot.innerText = `${player.player_name} - ${position}`;
           slot.setAttribute("data-position", position);
+          slot.setAttribute("data-team", player.team_id || "");
         }
       });
     }
   })
-  .then(() => fetchJsonSafe(`http://localhost:8000/football.php?action=user_players&username=${encodeURIComponent(username)}`))
+  .then(() => fetchJsonSafe(`${API}?action=user_players&username=${encodeURIComponent(username)}`))
   .then(data => {
     const list = document.getElementById('player-list');
     if (!Array.isArray(data) || data.length === 0) {
@@ -54,16 +81,6 @@ fetchJsonSafe(`http://localhost:8000/football.php?action=get_lineup&username=${e
     document.getElementById('player-list').innerHTML = '<p>Oyuncular yüklenemedi.</p>';
   });
 
-
-async function fetchJsonSafe(url, options) {
-  const res = await fetch(url, options);
-  const txt = await res.text();
-  try { return JSON.parse(txt); }
-  catch (e) { console.error("JSON parse edilemedi. Ham cevap:", txt); throw e; }
-}
-
-
-
 function sortPlayerList() {
   const list = document.getElementById("player-list");
   const items = Array.from(list.getElementsByClassName("player-item"));
@@ -76,17 +93,11 @@ function sortPlayerList() {
     return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
   });
 
-  items.forEach(item => list.appendChild(item)); // sıraya göre tekrar ekle
+  items.forEach(item => list.appendChild(item));
 }
 
-
-function allowDrop(ev) {
-  ev.preventDefault();
-}
-
-function drag(ev) {
-  ev.dataTransfer.setData("text", ev.target.id);
-}
+function allowDrop(ev) { ev.preventDefault(); }
+function drag(ev) { ev.dataTransfer.setData("text", ev.target.id); }
 
 function drop(ev) {
   ev.preventDefault();
@@ -97,7 +108,7 @@ function drop(ev) {
   if (!targetSlot.classList.contains("player-slot")) return;
 
   const draggedText = draggedElement.innerText.trim();
-  const targetText = targetSlot.innerText.trim();
+  const targetText  = targetSlot.innerText.trim();
 
   if (targetText === "") {
     const draggedName = draggedText.split(" - ")[0].trim();
@@ -109,9 +120,7 @@ function drop(ev) {
     if (draggedElement.classList.contains("player-item")) {
       draggedElement.remove();
       const justName = draggedName;
-      if (!existingLineupNames.includes(justName)) {
-        existingLineupNames.push(justName);
-      }
+      if (!existingLineupNames.includes(justName)) existingLineupNames.push(justName);
     } else if (draggedElement.classList.contains("player-slot")) {
       draggedElement.innerText = '';
       draggedElement.removeAttribute("data-position");
@@ -123,11 +132,11 @@ function drop(ev) {
 
   } else {
     if (draggedElement.classList.contains("player-slot")) {
-      // 🛠️ Slot-to-slot: iki slotun içeriği ve pozisyon bilgisi takas ediliyor
-      const draggedName = draggedText.split(" - ")[0].trim();
+      // slot-to-slot takas
       const draggedPosition = draggedElement.getAttribute("data-position") || "POZİSYON YOK";
-      const targetName = targetText.split(" - ")[0].trim();
-      const targetPosition = targetSlot.getAttribute("data-position") || "POZİSYON YOK";
+      const targetPosition  = targetSlot.getAttribute("data-position")  || "POZİSYON YOK";
+      const draggedName = draggedText.split(" - ")[0].trim();
+      const targetName  = targetText.split(" - ")[0].trim();
 
       draggedElement.innerText = `${targetName} - ${targetPosition}`;
       draggedElement.setAttribute("data-position", targetPosition);
@@ -135,9 +144,9 @@ function drop(ev) {
       targetSlot.innerText = `${draggedName} - ${draggedPosition}`;
       targetSlot.setAttribute("data-position", draggedPosition);
 
-      // ✅ BURAYA EKLE 👇
+      // team_id swap
       const draggedTeam = draggedElement.getAttribute("data-team") || "";
-      const targetTeam = targetSlot.getAttribute("data-team") || "";
+      const targetTeam  = targetSlot.getAttribute("data-team") || "";
       draggedElement.setAttribute("data-team", targetTeam);
       targetSlot.setAttribute("data-team", draggedTeam);
 
@@ -147,8 +156,8 @@ function drop(ev) {
         draggedElement.classList.remove('fade-in');
         targetSlot.classList.remove('fade-in');
       }, 300);
-    }
-    else if (draggedElement.classList.contains("player-item")) {
+    } else if (draggedElement.classList.contains("player-item")) {
+      // listeden slota
       const newListItem = document.createElement("div");
       newListItem.className = 'player-item fade-in';
       const targetName = targetText.split(" - ")[0].trim();
@@ -158,23 +167,21 @@ function drop(ev) {
       newListItem.draggable = true;
       newListItem.ondragstart = drag;
       newListItem.setAttribute("data-position", targetPosition);
+      newListItem.setAttribute("data-team", targetSlot.getAttribute("data-team") || "");
 
       document.getElementById("player-list").appendChild(newListItem);
-      sortPlayerList(); // ✅ listeye yeni oyuncu eklendiğinde yeniden sırala
+      sortPlayerList();
 
       const draggedName = draggedText.split(" - ")[0].trim();
       const draggedPosition = draggedText.split(" - ")[1]?.trim() || "POZİSYON YOK";
-      const draggedTeam = draggedElement.getAttribute("data-team") || ""; // 👈 EKLENDİ
+      const draggedTeam = draggedElement.getAttribute("data-team") || "";
       targetSlot.innerText = `${draggedName} - ${draggedPosition}`;
       targetSlot.setAttribute("data-position", draggedPosition);
-      targetSlot.setAttribute("data-team", draggedTeam); // 👈 EKLENDİ
+      targetSlot.setAttribute("data-team", draggedTeam);
 
       draggedElement.remove();
 
-      const justName = draggedName;
-      if (!existingLineupNames.includes(justName)) {
-        existingLineupNames.push(justName);
-      }
+      if (!existingLineupNames.includes(draggedName)) existingLineupNames.push(draggedName);
 
       targetSlot.classList.add('fade-in');
       setTimeout(() => targetSlot.classList.remove('fade-in'), 300);
@@ -187,7 +194,6 @@ function drop(ev) {
   calculateChemistryLinks();
 }
 
-
 function dropToList(ev) {
   ev.preventDefault();
   const data = ev.dataTransfer.getData("text");
@@ -199,21 +205,18 @@ function dropToList(ev) {
   const playerPosition = draggedElement.getAttribute("data-position") || playerText.split(" - ")[1]?.trim() || "POZİSYON YOK";
   const playerTeam = draggedElement.getAttribute("data-team") || "";
 
-  // 🔧 Yeni player DOM öğesi oluşturuluyor
   const newPlayer = document.createElement('div');
-  newPlayer.className = 'player-item fade-in'; // 🎯 Stil sınıfları eksiksiz
+  newPlayer.className = 'player-item fade-in';
   newPlayer.innerText = `${playerName} - ${playerPosition}`;
   newPlayer.setAttribute("data-position", playerPosition);
   newPlayer.setAttribute("data-team", playerTeam);
   newPlayer.setAttribute("draggable", "true");
   newPlayer.ondragstart = drag;
-  newPlayer.id = `player-${Date.now()}`; // benzersiz id
+  newPlayer.id = `player-${Date.now()}`;
 
   document.getElementById("player-list").appendChild(newPlayer);
-  sortPlayerList(); // 🔄 Liste güncellendiğinde otomatik sırala
+  sortPlayerList();
 
-
-  // 🔄 Slot'tan alındıysa slot'u temizle, listeden alındıysa sil
   if (draggedElement.classList.contains("player-slot")) {
     draggedElement.innerText = '';
     draggedElement.removeAttribute("data-position");
@@ -226,7 +229,6 @@ function dropToList(ev) {
   autoSaveLineup();
   calculateChemistryLinks();
 }
-
 
 function updateSlotDraggables() {
   for (let i = 1; i <= 11; i++) {
@@ -245,44 +247,31 @@ function updateSlotDraggables() {
 }
 
 function autoSaveLineup() {
-  const username = new URLSearchParams(window.location.search).get("username");
   const lineup = [];
-
   for (let i = 1; i <= 11; i++) {
     const slot = document.getElementById(`slot${i}`);
     const playerText = slot.innerText.trim();
-
     if (playerText !== "") {
-      const playerName = playerText.split(" - ")[0].trim(); // ✅ sadece isim
-      lineup.push({
-        username: username,
-        slot_no: i,
-        player_name: playerName
-      });
+      const playerName = playerText.split(" - ")[0].trim();
+      lineup.push({ username, slot_no: i, player_name: playerName });
     }
   }
 
-  fetch("http://localhost:8000/football.php?action=save_lineup", {
+  authedFetch(`${API}?action=save_lineup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(lineup)
   })
     .then(res => res.json())
     .then(response => {
-      if (!response.success) {
-        console.warn("Kadro kaydedilemedi:", response.error);
-      }
+      if (!response.success) console.warn("Kadro kaydedilemedi:", response.error);
     })
-    .catch(err => {
-      console.error("Kadro otomatik kaydedilirken hata:", err);
-    });
+    .catch(err => console.error("Kadro otomatik kaydedilirken hata:", err));
 }
-
 
 function applySlotBordersForAllSlots(username, allPlayers) {
   const user = allPlayers.find(p => p.name === username);
   const borderColor = user?.color || "#ffffff";
-
   for (let i = 1; i <= 11; i++) {
     const slot = document.getElementById(`slot${i}`);
     if (slot) {
@@ -295,7 +284,6 @@ function applySlotBordersForAllSlots(username, allPlayers) {
 function getAdjacentSlots(slotNo) {
   const username = new URLSearchParams(window.location.search).get("username");
   const formation = localStorage.getItem(`selectedFormation_${username}`) || "4231";
-
   const map = adjacentSlotsMap[formation];
   return map?.[slotNo] || [];
 }
@@ -304,26 +292,22 @@ function syncSvgSize() {
   const container = document.getElementById("field-container");
   const svg = document.getElementById("chemistry-lines");
   if (!container || !svg) return;
-
   const w = container.clientWidth;
   const h = container.clientHeight;
   if (!w || !h) return;
-
   svg.setAttribute("width", w);
   svg.setAttribute("height", h);
   svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
 }
 
-
-
 function calculateChemistryLinks() {
-  // Önce tüm kimya sınıflarını temizle
+  // sınıfları temizle
   for (let i = 1; i <= 11; i++) {
     const slot = document.getElementById(`slot${i}`);
     slot?.classList.remove("chemistry-link");
   }
 
-  // Ardından yeniden hesapla
+  // takım eşleşmelerini topla
   const teamMap = {};
   for (let i = 1; i <= 11; i++) {
     const slot = document.getElementById(`slot${i}`);
@@ -334,7 +318,6 @@ function calculateChemistryLinks() {
   for (let i = 1; i <= 11; i++) {
     const thisTeam = teamMap[i];
     if (!thisTeam) continue;
-
     const neighbors = getAdjacentSlots(i);
     neighbors.forEach(n => {
       if (teamMap[n] && teamMap[n] === thisTeam) {
@@ -343,32 +326,25 @@ function calculateChemistryLinks() {
       }
     });
   }
-  const bondedPairs = new Set();
 
+  const bondedPairs = new Set();
   for (let i = 1; i <= 11; i++) {
     const thisTeam = teamMap[i];
     if (!thisTeam) continue;
-
     const neighbors = getAdjacentSlots(i);
     neighbors.forEach(n => {
       if (teamMap[n] && teamMap[n] === thisTeam) {
-        const pair = [i, n].sort().join("-");
-        bondedPairs.add(pair); // tekrar edenleri engellemek için
+        bondedPairs.add([i, n].sort().join("-"));
       }
     });
   }
 
-  console.log("🔥 Kimya Bağları:", Array.from(bondedPairs));
-
-  // 🔄 SVG ile çizgileri çiz
   const svg = document.getElementById("chemistry-lines");
-  svg.innerHTML = ''; // önceki çizgileri sil
-
+  svg.innerHTML = '';
   bondedPairs.forEach(pair => {
     const [i, j] = pair.split("-").map(Number);
     const el1 = document.getElementById(`slot${i}`);
     const el2 = document.getElementById(`slot${j}`);
-
     if (!el1 || !el2) return;
 
     const rect1 = el1.getBoundingClientRect();
@@ -387,8 +363,8 @@ function calculateChemistryLinks() {
     line.setAttribute("y2", y2);
     svg.appendChild(line);
   });
-  const username = new URLSearchParams(window.location.search).get("username");
-  const chemistryCount = bondedPairs.size; // eşsiz bağlantı sayısı
+
+  const chemistryCount = bondedPairs.size;
   if (localStorage.getItem("fromPage") === "trade") {
     localStorage.setItem(`chemistry_after_${username}`, chemistryCount);
   } else {
@@ -397,12 +373,10 @@ function calculateChemistryLinks() {
   }
 }
 
-
-// Sayfanın alt kısmına kullanıcı linkleri oluştur
+// Sayfanın alt kısmına kullanıcı linkleri
 (function renderUserLinks() {
   const playersRaw = localStorage.getItem('players');
   if (!playersRaw) return;
-  
   try {
     const players = JSON.parse(playersRaw);
     if (!Array.isArray(players) || players.length === 0) return;
@@ -414,121 +388,87 @@ function calculateChemistryLinks() {
       link.textContent = player.name;
       link.className = 'user-link';
       link.style.color = player.color || "#ffffff";
-
-
-      if (player.name === username) {
-        link.classList.add('active-user');
-      }
-
+      if (player.name === username) link.classList.add('active-user');
       container.appendChild(link);
     });
-
-
   } catch (e) {
     console.error("Kullanıcı linkleri oluşturulamadı:", e);
   }
 })();
 
-const from = localStorage.getItem("fromPage"); // artık buradan geliyor
+const from = localStorage.getItem("fromPage");
 const backBtn = document.getElementById("back-to-game-btn");
-
 if (from === "trade") {
   backBtn.textContent = "← Takasa Dön";
-  backBtn.addEventListener("click", () => {
-    window.location.href = "trade.html";
-  });
+  backBtn.addEventListener("click", () => { window.location.href = "trade.html"; });
 } else {
   backBtn.textContent = "← Oyuna Dön";
-  backBtn.addEventListener("click", () => {
-    window.location.href = "index.html";
-  });
+  backBtn.addEventListener("click", () => { window.location.href = "index.html"; });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   const username = new URLSearchParams(window.location.search).get("username");
-  // ⬇️ Her kullanıcıya özel formasyon getir
   const savedFormation = localStorage.getItem(`selectedFormation_${username}`) || "4231";
   const selectEl = document.getElementById("formation-select");
-  if (selectEl) {
-    selectEl.value = savedFormation;
-  }
+  if (selectEl) selectEl.value = savedFormation;
   changeFormation(savedFormation);
 
-  // Slot kutularına sınıf ekle
   for (let i = 1; i <= 11; i++) {
     const slot = document.getElementById(`slot${i}`);
-    if (slot) {
-      slot.classList.add("player-slot");
-    }
+    if (slot) slot.classList.add("player-slot");
   }
 
   updateSlotDraggables();
 
-  // Renkli çerçeve uygulamasını HEMEN yap
   const allPlayers = JSON.parse(localStorage.getItem("players") || "[]");
   applySlotBordersForAllSlots(username, allPlayers);
 
- fetchJsonSafe(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(username)}`)
-  .then(lineup => {
-    if (Array.isArray(lineup)) {
-      existingLineupNames = lineup.map(p => p.player_name.trim());
-      lineup.forEach(player => {
-        const slot = document.getElementById(`slot${player.slot_no}`);
-        if (slot) {
-          const position = player.position?.toUpperCase() || "POZİSYON YOK";
-          slot.innerText = `${player.player_name} - ${position}`;
-          slot.setAttribute("data-position", position);
-          slot.setAttribute("data-team", player.team_id || "");
-        }
-      });
-      updateSlotDraggables();
-      syncSvgSize();
-      requestAnimationFrame(() => {
+  fetchJsonSafe(`${API}?action=get_lineup&username=${encodeURIComponent(username)}`)
+    .then(lineup => {
+      if (Array.isArray(lineup)) {
+        existingLineupNames = lineup.map(p => p.player_name.trim());
+        lineup.forEach(player => {
+          const slot = document.getElementById(`slot${player.slot_no}`);
+          if (slot) {
+            const position = player.position?.toUpperCase() || "POZİSYON YOK";
+            slot.innerText = `${player.player_name} - ${position}`;
+            slot.setAttribute("data-position", position);
+            slot.setAttribute("data-team", player.team_id || "");
+          }
+        });
+        updateSlotDraggables();
         syncSvgSize();
-        calculateChemistryLinks();
-      });
-    }
-  })
-  .catch(err => {
-    console.error("Kadro yüklenirken hata:", err);
-  });
+        requestAnimationFrame(() => {
+          syncSvgSize();
+          calculateChemistryLinks();
+        });
+      }
+    })
+    .catch(err => console.error("Kadro yüklenirken hata:", err));
 
-  // İlk çizim: layout + görsel yüklendikten sonra
   const fieldImg = document.getElementById("field-image");
-
-  // 1) Tek yerden başlatıcı
   const initChemistry = () => {
-    // Önce SVG boyutlarını container'a kilitle
     syncSvgSize();
-    // Bir frame bekle ki slotların top/left yerleşimi tam otursun
     requestAnimationFrame(() => {
       syncSvgSize();
       calculateChemistryLinks();
     });
   };
-
-  // 2) Saha görseli varsa, yüklendiğinde başlat; yoksa hemen başlat
   if (fieldImg && !fieldImg.complete) {
     fieldImg.addEventListener("load", initChemistry, { once: true });
   } else {
     initChemistry();
   }
-
-  // 3) Yine de tüm sayfa asset'leri bittiğinde bir kez daha sağlamla
   window.addEventListener("load", initChemistry, { once: true });
-
-  // (Opsiyonel ama faydalı) resize’da hizayı koru
   window.addEventListener("resize", () => {
     syncSvgSize();
     calculateChemistryLinks();
   });
-
 });
 
 function changeFormation(formation) {
   const layout = formationLayouts[formation];
   if (!layout) return;
-
   for (let i = 1; i <= 11; i++) {
     const slot = document.getElementById(`slot${i}`);
     if (slot && layout[i]) {
@@ -536,13 +476,11 @@ function changeFormation(formation) {
       slot.style.left = layout[i].left + "px";
     }
   }
-  // ✅ Her kullanıcıya özel dizilişi kaydet
   const username = new URLSearchParams(window.location.search).get("username");
   if (username) {
     localStorage.setItem(`selectedFormation_${username}`, formation);
   }
-
-  calculateChemistryLinks(); // Kimya yeniden hesaplanı
+  calculateChemistryLinks();
 }
 
 const formationLayouts = {

@@ -4,11 +4,27 @@ const leagueSelect = document.getElementById("leagueSelect");
 const clearBtn = document.getElementById("clearTeams");
 
 let selectedTeamIds = new Set();
+const UID_KEY = "user_id";
 
+// ✅ user_id yoksa üret (backend X-User-Id zorunlu)
+let userId = localStorage.getItem(UID_KEY);
+if (!userId) {
+  if (window.crypto && crypto.randomUUID) {
+    userId = crypto.randomUUID();
+  } else {
+    userId = 'uid-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+  }
+  localStorage.setItem(UID_KEY, userId);
+}
 
-async function fetchJSON(url, opts={}) {
-  const r = await fetch(url, {
-    headers: { "Content-Type":"application/json" },
+function authedFetch(url, options = {}) {
+  const headers = Object.assign({}, options.headers, { "X-User-Id": userId });
+  return fetch(url, { ...options, headers });
+}
+
+async function fetchJSON(url, opts = {}) {
+  const r = await authedFetch(url, {
+    headers: { "Content-Type": "application/json" },
     cache: "no-store",
     ...opts
   });
@@ -33,14 +49,12 @@ async function loadLeagues() {
   leagueSelect.appendChild(clOpt);
 }
 
-
 async function loadFullTeams() {
   const league = leagueSelect.value;
 
   let data = [];
   if (league === "__ucl16") {
-    // Özel ID listesi
-    const ids = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 17, 50, 49, 54, 29];
+    const ids = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 17, 50, 49, 54, 29, 74];
     data = await fetchJSON(`${API}?action=get_full_teams_by_ids&ids=${ids.join(",")}`);
   } else {
     const url = league
@@ -52,17 +66,16 @@ async function loadFullTeams() {
   renderFullTeams(data);
 }
 
-
-function renderFullTeams(rows){
+function renderFullTeams(rows) {
   fullTeamsListEl.innerHTML = "";
-  if (!rows.length){
+  if (!rows.length) {
     fullTeamsListEl.innerHTML = `<div class="empty">Takım bulunamadı</div>`;
     return;
   }
-  rows.forEach(r=>{
+  rows.forEach(r => {
     const already = selectedTeamIds.has(Number(r.team_id));
     const li = document.createElement("li");
-    li.className="item";
+    li.className = "item";
     li.innerHTML = `
       <div class="meta">
         <span class="name">${r.team_name}</span>
@@ -79,26 +92,24 @@ function renderFullTeams(rows){
   });
 }
 
-
-
-// Sağdaki liste (teams)
-async function loadTeams(){
+// Sağdaki liste (kullanıcının seçtikleri)
+async function loadTeams() {
+  // backend: get_teams -> user_teams JOIN full_teams
   const rows = await fetchJSON(`${API}?action=get_teams`);
-  // Sağ liste render
   renderTeams(rows);
-  // Seçilileri set’e işle
+  // backend id = full_teams.team_id
   selectedTeamIds = new Set(rows.map(r => Number(r.id)));
 }
 
-function renderTeams(rows){
+function renderTeams(rows) {
   teamsListEl.innerHTML = "";
-  if (!rows.length){
+  if (!rows.length) {
     teamsListEl.innerHTML = `<div class="empty">Henüz takım seçilmedi</div>`;
     return;
   }
-  rows.forEach(r=>{
+  rows.forEach(r => {
     const li = document.createElement("li");
-    li.className="item";
+    li.className = "item";
     li.innerHTML = `
       <div class="meta">
         <span class="name">${r.team_name}</span>
@@ -114,7 +125,6 @@ function renderTeams(rows){
 const addAllBtn = document.getElementById("addAllBtn");
 
 addAllBtn.addEventListener("click", async () => {
-  // Sol listedeki tüm eklenebilir takımlar
   const addButtons = fullTeamsListEl.querySelectorAll("button[data-add]:not(:disabled)");
   if (!addButtons.length) {
     alert("Eklenecek takım bulunamadı.");
@@ -128,7 +138,6 @@ addAllBtn.addEventListener("click", async () => {
   addAllBtn.textContent = "Ekleniyor...";
 
   try {
-    // API'ye toplu gönderim (tek tek POST atmak yerine toplu array göndermek daha hızlı olur)
     await fetchJSON(API + "?action=teams_add_bulk", {
       method: "POST",
       body: JSON.stringify({ team_ids: ids })
@@ -144,8 +153,6 @@ addAllBtn.addEventListener("click", async () => {
   }
 });
 
-
-
 fullTeamsListEl.addEventListener("click", async (e) => {
   const btn = e.target.closest('button[data-add]');
   if (!btn || btn.disabled) return;
@@ -153,16 +160,14 @@ fullTeamsListEl.addEventListener("click", async (e) => {
   const id = Number(btn.getAttribute("data-add"));
   if (!id) return;
 
-  // 🔒 Çift tıklamayı engelle
   btn.disabled = true;
 
-  // ✅ OPTİMİSTİK: Hemen state + UI güncelle
+  // Optimistik UI
   const oldText = btn.textContent;
   const had = selectedTeamIds.has(id);
   selectedTeamIds.add(id);
   btn.textContent = "Eklendi";
-  btn.classList.add("disabled"); // varsa CSS'te gri görünüm
-  // not: renderFullTeams() zaten selectedTeamIds’e bakıyor
+  btn.classList.add("disabled");
 
   try {
     await fetchJSON(API + "?action=teams_add", {
@@ -170,11 +175,9 @@ fullTeamsListEl.addEventListener("click", async (e) => {
       body: JSON.stringify({ team_id: id })
     });
 
-    // Sunucu gerçek durumu ile yeniden senkronla
-    await loadTeams();      // selectedTeamIds = sunucudan gelen gerçek liste
-    await loadFullTeams();  // soldaki butonları yeni sete göre çiz
+    await loadTeams();
+    await loadFullTeams();
   } catch (err) {
-    // ❌ Hata: optimistik değişiklikleri geri al
     if (!had) selectedTeamIds.delete(id);
     btn.textContent = oldText;
     btn.classList.remove("disabled");
@@ -182,10 +185,7 @@ fullTeamsListEl.addEventListener("click", async (e) => {
     alert("Ekleme hatası: " + err.message);
     return;
   }
-
-  // Başarılıysa buton disabled kalabilir (zaten eklendi)
 });
-
 
 // Sil
 teamsListEl.addEventListener("click", async (e) => {
@@ -197,7 +197,6 @@ teamsListEl.addEventListener("click", async (e) => {
 
   btn.disabled = true;
 
-  // ✅ OPTİMİSTİK: hemen set’ten çıkar
   const had = selectedTeamIds.has(rid);
   if (had) selectedTeamIds.delete(rid);
 
@@ -206,7 +205,6 @@ teamsListEl.addEventListener("click", async (e) => {
     await loadTeams();
     await loadFullTeams();
   } catch (err) {
-    // ❌ geri al
     if (had) selectedTeamIds.add(rid);
     btn.disabled = false;
     alert("Silme hatası: " + err.message);
@@ -219,18 +217,16 @@ clearBtn.addEventListener("click", async () => {
   const old = clearBtn.textContent;
   clearBtn.textContent = "Temizleniyor...";
 
-  // ✅ OPTİMİSTİK: set’i boşalt, UI hemen boş görünsün
   const backup = new Set(selectedTeamIds);
   selectedTeamIds.clear();
-  renderTeams([]);            // sağ paneli anında boşalt (isteğe bağlı)
-  await loadFullTeams();      // soldaki butonlar aktifleşsin
+  renderTeams([]);
+  await loadFullTeams();
 
   try {
     await fetchJSON(API + "?action=teams_truncate", { method: "DELETE" });
     await loadTeams();
     await loadFullTeams();
   } catch (err) {
-    // ❌ geri al
     selectedTeamIds = backup;
     await loadTeams();
     await loadFullTeams();
@@ -241,14 +237,10 @@ clearBtn.addEventListener("click", async () => {
   }
 });
 
-
-
-// Lig değişince sol listeyi yenile
 leagueSelect.addEventListener("change", loadFullTeams);
 
-(async function init(){
+(async function init() {
   await loadLeagues();
-  await loadTeams();       // önce sağ
-  await loadFullTeams();   // sonra sol
+  await loadTeams();       // önce sağ (kullanıcının seçtikleri)
+  await loadFullTeams();   // sonra sol (filtreli tüm takımlar)
 })();
-

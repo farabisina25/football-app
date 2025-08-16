@@ -1,5 +1,25 @@
+const API = "http://localhost:8000/football.php";
+
 const players = JSON.parse(localStorage.getItem('players')) || [];
-//const SLICE_COLORS = ["#2ecc71", "#27ae60", "#1abc9c", "#16a085", "#2e86de"];
+const UID_KEY = "user_id";
+let isAdding = false; // global
+
+// ✅ user_id yoksa üret
+let userId = localStorage.getItem(UID_KEY);
+if (!userId) {
+  if (window.crypto && crypto.randomUUID) {
+    userId = crypto.randomUUID();
+  } else {
+    userId = 'uid-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+  }
+  localStorage.setItem(UID_KEY, userId);
+}
+
+function authedFetch(url, options = {}) {
+  const headers = Object.assign({}, options.headers, { "X-User-Id": userId });
+  return fetch(url, { ...options, headers });
+}
+
 const SLICE_COLORS = [
   "#2ecc71", "#27ae60", "#1abc9c", "#16a085", "#2e86de",
   "#8e44ad", "#f39c12", "#e67e22", "#e74c3c", "#95a5a6"
@@ -10,12 +30,12 @@ if (!Array.isArray(players) || players.length === 0) {
   window.location.href = 'start.html';
 }
 
-const endGameBtn = document.getElementById('end-game-btn');
-const playerArea = document.getElementById('player-area');
-const spinBtn = document.getElementById("spin-btn");
-const canvas = document.getElementById("team-wheel");
-const ctx = canvas.getContext("2d");
-const radius = canvas.width / 2;
+const endGameBtn   = document.getElementById('end-game-btn');
+const playerArea   = document.getElementById('player-area');
+const spinBtn      = document.getElementById("spin-btn");
+const canvas       = document.getElementById("team-wheel");
+const ctx          = canvas.getContext("2d");
+const radius       = canvas.width / 2;
 
 let teamData = [];
 let spinning = false;
@@ -27,10 +47,23 @@ let currentTurn = 0;
 let maxTurns = 11;
 let isWaitingForTeamSelection = true;
 
+function disableAllAddButtons(disabled) {
+  document.querySelectorAll(".add-button").forEach(btn => {
+    btn.disabled = disabled;
+    if (disabled) {
+      btn.textContent = "İşleniyor...";
+    } else {
+      btn.textContent = "Kadroma Ekle";
+    }
+  });
+}
+
 async function calculateCurrentTurn() {
   const userPlayerCounts = await Promise.all(
     players.map(async player => {
-      const response = await fetch(`http://localhost:8000/football.php?action=user_players&username=${encodeURIComponent(player.name)}`);
+      const response = await authedFetch(
+        `${API}?action=user_players&username=${encodeURIComponent(player.name)}`
+      );
       const data = await response.json();
       return Array.isArray(data) ? data.length : 0;
     })
@@ -45,19 +78,11 @@ async function calculateCurrentTurn() {
 
   if (allEqual && allMaxed) {
     isWaitingForTeamSelection = false;  // Turlar bitti
-
-    // Çark butonunu tamamen gizle
     spinBtn.style.display = "none";
-
-    // "Oyunu Bitir" butonunu göster
     endGameBtn.style.display = 'inline-block';
-
-    // Oyuncu listesi gizlensin
     playerArea.style.display = "none";
-
     return false;
   }
-
 
   return true;
 }
@@ -65,7 +90,6 @@ async function calculateCurrentTurn() {
 function updateTurnInfo() {
   const heading = document.getElementById("turn-info-heading");
 
-  // Tüm oyuncular 11 kişilik kadro oluşturduysa
   if (!isWaitingForTeamSelection) {
     heading.textContent = "Turlar Bitti";
     return;
@@ -73,10 +97,8 @@ function updateTurnInfo() {
 
   const username = players[currentPlayerIndex].name;
   heading.textContent = `${username} - ${currentTurn + 1}. Tur`;
-  playerArea.innerHTML = ""; // Tur metni gösterilmeyecek
+  playerArea.innerHTML = "";
 }
-
-
 
 function drawWheel() {
   const sliceAngle = (2 * Math.PI) / teamData.length;
@@ -104,22 +126,20 @@ function drawWheel() {
     ctx.restore();
   });
 
-    // Saat yelkovanı şeklinde merkezden çıkan ok
+  // merkezden çıkan ok
   ctx.save();
   ctx.translate(radius, radius);
-  ctx.rotate(0); // Yelkovan açısı sıfır
   ctx.beginPath();
   ctx.moveTo(0, 0);
-  ctx.lineTo(0, -radius + 170); // veya -radius + 50
+  ctx.lineTo(0, -radius + 170);
   ctx.lineWidth = 6;
   ctx.strokeStyle = "#e91e63";
   ctx.stroke();
   ctx.restore();
-
 }
 
 async function loadTeams() {
-  const res = await fetch("http://localhost:8000/football.php?action=get_teams");
+  const res = await authedFetch(`${API}?action=get_teams`);
   teamData = await res.json();
   drawWheel();
 }
@@ -138,7 +158,7 @@ function drawRotatedWheel(angleOffset, highlightIndex = -1) {
     ctx.closePath();
 
     if (index === highlightIndex) {
-      ctx.fillStyle = "#ffeb3b";         // seçili glow aynı kalsın
+      ctx.fillStyle = "#ffeb3b";
       ctx.shadowColor = "#ffc107";
       ctx.shadowBlur = 30;
     } else {
@@ -146,7 +166,6 @@ function drawRotatedWheel(angleOffset, highlightIndex = -1) {
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
     }
-
 
     ctx.fill();
 
@@ -163,9 +182,9 @@ function drawRotatedWheel(angleOffset, highlightIndex = -1) {
     ctx.restore();
   });
 
+  // ok
   ctx.save();
   ctx.translate(radius, radius);
-  ctx.rotate(0);
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.lineTo(0, -radius + 170);
@@ -179,20 +198,19 @@ function spinWheel() {
   if (spinning || !isWaitingForTeamSelection) return;
   spinning = true;
 
-  velocity = Math.random() * 0.1 + 0.15;  // Başlangıç hızı
+  velocity = Math.random() * 0.1 + 0.15;
 
   function animate() {
     drawRotatedWheel(angle);
     angle += velocity;
 
-    // Durmaya yaklaştıkça yavaşlama daha da artar
     if (velocity < 0.03) {
-      velocity *= 0.96;  // Daha keskin yavaşlat
+      velocity *= 0.96;
     } else {
-      velocity *= 0.99;  // Normal yavaşlama
+      velocity *= 0.99;
     }
 
-    if (velocity < 0.005) {  // Daha yumuşak eşik
+    if (velocity < 0.005) {
       spinning = false;
 
       const sliceAngle = (2 * Math.PI) / teamData.length;
@@ -216,10 +234,6 @@ function spinWheel() {
   animate();
 }
 
-
-
-
-
 async function handleTeamSelection(index) {
   localStorage.setItem("selectedTeamIndex", index);
 
@@ -237,17 +251,9 @@ async function handleTeamSelection(index) {
 
   headingRight.textContent = `${selectedTeam.team_name} Oyuncuları (${username})`;
 
-  // Listenin altına yumuşak kaydır
-  /*document.getElementById("scroll-anchor").scrollIntoView({
-    behavior: "smooth",
-    block: "end"
-  });*/
-
-
-
   const [playersList, gameplayers] = await Promise.all([
-    fetch(`http://localhost:8000/football.php?action=get_players_by_team&team_id=${selectedTeam.id}`).then(res => res.json()),
-    fetch("http://localhost:8000/football.php?action=get_all_game_players").then(res => res.json())
+    authedFetch(`${API}?action=get_players_by_team&team_id=${selectedTeam.id}`).then(res => res.json()),
+    authedFetch(`${API}?action=get_all_game_players`).then(res => res.json())
   ]);
 
   const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
@@ -257,11 +263,10 @@ async function handleTeamSelection(index) {
     const posB = b.position?.toUpperCase() || '';
     const indexA = positionOrder.indexOf(posA);
     const indexB = positionOrder.indexOf(posB);
-    // Bilinmeyen pozisyonlar en sona atılır
     return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
   });
 
-  playerArea.innerHTML = ""; // oyuncular için alan temizleniyor
+  playerArea.innerHTML = "";
 
   playersList.forEach(player => {
     const div = document.createElement("div");
@@ -270,9 +275,7 @@ async function handleTeamSelection(index) {
     const nameSpan = document.createElement("span");
     const playerName = player.player_name || "İsimsiz Oyuncu";
     const position = player.position || "";
-
     nameSpan.textContent = `${playerName} (${position})`;
-
 
     const btn = document.createElement("button");
     const owner = gameplayers.find(entry => entry.player_name?.trim() === playerName);
@@ -288,48 +291,48 @@ async function handleTeamSelection(index) {
       btn.className = "add-button";
 
       btn.onclick = async () => {
+        if (isAdding) return; // zaten işlem varsa tıklamayı engelle
+        isAdding = true;
+        disableAllAddButtons(true);
+
         const payload = {
           username,
           team_id: selectedTeam.id,
           player_id: player.id
         };
 
-        const res = await fetch("http://localhost:8000/football.php?action=add_game_player", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          // 🌟 1. Scroll yukarıya
-          window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
+        try {
+          const res = await authedFetch(`${API}?action=add_game_player`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
           });
 
-          // 🌟 2. Takım bilgisini temizle
-          localStorage.removeItem("selectedTeamIndex");
+          const data = await res.json();
+          if (data.success) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            localStorage.removeItem("selectedTeamIndex");
 
-          // 🌟 3. 900ms bekle, sonra player listi ve başlığı kaldır
-          setTimeout(async () => {
-            document.getElementById("player-area").style.display = "none";
-            document.getElementById("right-heading").style.visibility = "hidden";
-
-            // 🌟 4. Çarkı sıfırla
-            drawWheel();
-
-            // 🌟 5. Yeni tura geç
-            isWaitingForTeamSelection = true;
-            const canContinue = await calculateCurrentTurn();
-            updateTurnInfo();
-          }, 900);
-        } else {
-          alert("Ekleme başarısız: " + (data.error || "Bilinmeyen hata"));
+            setTimeout(async () => {
+              document.getElementById("player-area").style.display = "none";
+              document.getElementById("right-heading").style.visibility = "hidden";
+              drawWheel();
+              isWaitingForTeamSelection = true;
+              await calculateCurrentTurn();
+              updateTurnInfo();
+              isAdding = false; // ✅ işlem bitti
+            }, 900);
+          } else {
+            isAdding = false;
+            disableAllAddButtons(false); // ❌ başarısızsa geri aç
+            alert("Ekleme başarısız: " + (data.error || "Bilinmeyen hata"));
+          }
+        } catch (err) {
+          isAdding = false;
+          disableAllAddButtons(false);
+          alert("Sunucu hatası: " + err.message);
         }
       };
-
-
     }
 
     div.appendChild(nameSpan);
@@ -337,64 +340,53 @@ async function handleTeamSelection(index) {
     playerArea.appendChild(div);
   });
 
-  // Oyuncular eklendikten sonra sayfanın tamamen render edilmesini bekle, sonra scroll et
   requestAnimationFrame(() => {
     setTimeout(() => {
       window.scrollTo({
         top: document.body.scrollHeight,
         behavior: 'smooth'
       });
-    }, 100); // render sonrası küçük gecikme
+    }, 100);
   });
-
-
 }
-
 
 document.getElementById("end-game-btn").addEventListener("click", async () => {
   for (let player of players) {
-    const res = await fetch(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(player.name)}`);
+    const res = await authedFetch(`${API}?action=get_lineup&username=${encodeURIComponent(player.name)}`);
     const data = await res.json();
-    
     if (!Array.isArray(data) || data.length !== 11) {
       alert(`${player.name} adlı oyuncunun sahaya yerleştirdiği oyuncu sayısı 11 değil!`);
       return;
     }
   }
-  // Tüm kullanıcılar 11 kişiyse yönlendir
   window.location.href = "trade.html";
 });
 
-
 document.getElementById("view-lineups-btn").onclick = () => {
-  const username = players[currentPlayerIndex].name; // sıradaki oyuncu
+  const username = players[currentPlayerIndex].name;
   localStorage.setItem("fromPage", "index");
   window.location.href = `user_players.html?username=${encodeURIComponent(username)}&from=index`;
 };
 
 document.getElementById("restart-btn").addEventListener("click", async () => {
   try {
+    // ❗ user_id’yi koru
+    const keepUid = localStorage.getItem(UID_KEY);
     localStorage.clear();
+    if (keepUid) localStorage.setItem(UID_KEY, keepUid);
 
-    // Önce oyunla ilgili tabloları temizle
-    await fetch("http://localhost:8000/football.php?action=reset_game")
-      .then(res => res.json());
+    // oyun tablolarını temizle (user scope)
+    await authedFetch(`${API}?action=reset_game`).then(res => res.json());
 
-    // Ardından teams tablosunu temizle
-    await fetch("http://localhost:8000/football.php?action=teams_truncate", {
-      method: "DELETE"
-    }).then(res => res.json());
+    // kullanıcının takımlarını temizle
+    await authedFetch(`${API}?action=teams_truncate`, { method: "DELETE" }).then(res => res.json());
 
-    // Bittiğinde başlangıç sayfasına dön
     window.location.href = "start.html";
-
   } catch (err) {
     console.error("Sunucu hatası:", err);
     alert("Tablolar temizlenemedi.");
   }
 });
-
-
 
 spinBtn.addEventListener("click", spinWheel);
 
@@ -405,11 +397,10 @@ loadTeams().then(async () => {
   updateTurnInfo();
 
   if (savedIndex !== null && isWaitingForTeamSelection) {
-    await handleTeamSelection(parseInt(savedIndex));
+    await handleTeamSelection(parseInt(savedIndex, 10));
     return;
   }
 
-  // En alta scroll
   setTimeout(() => {
     const anchor = document.getElementById('scroll-anchor');
     if (anchor) {
@@ -417,4 +408,3 @@ loadTeams().then(async () => {
     }
   }, 300);
 });
-

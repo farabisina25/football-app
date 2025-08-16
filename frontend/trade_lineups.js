@@ -1,3 +1,19 @@
+const API = "http://localhost:8000/football.php";
+
+const UID_KEY = "user_id";
+let userId = localStorage.getItem(UID_KEY);
+if (!userId) {
+  userId = (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `uid-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  localStorage.setItem(UID_KEY, userId);
+}
+
+function authedFetch(url, options = {}) {
+  const headers = Object.assign({}, options.headers, { "X-User-Id": userId });
+  return fetch(url, { ...options, headers });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const container = document.getElementById("lineup-grid");
   const allPlayers = JSON.parse(localStorage.getItem("players") || "[]");
@@ -13,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const layout = formationLayouts[formation];
     const adjacentMap = adjacentSlotsMap[formation];
 
-    fetch(`http://localhost:8000/football.php?action=get_lineup&username=${encodeURIComponent(username)}`)
+    authedFetch(`${API}?action=get_lineup&username=${encodeURIComponent(username)}`)
       .then(res => res.json())
       .then(lineup => {
         const box = document.createElement("div");
@@ -63,11 +79,11 @@ document.addEventListener("DOMContentLoaded", () => {
             box.appendChild(slot);
             slotElements[slotNo] = slot;
 
+            // kimya çizgileri için takım id’si
             teamMap[slotNo] = player.team_id;
           });
 
           drawChemistryLines(svg, box, slotElements, teamMap, adjacentMap);
-
         }
 
         container.appendChild(box);
@@ -118,7 +134,7 @@ function drawChemistryLines(svg, box, slotElements, teamMap, adjacentMap) {
         }
       });
     });
-  }, 100); // gecikme ile DOM yerleşsin
+  }, 100);
 }
 
 

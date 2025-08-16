@@ -1,23 +1,39 @@
+const API = "http://localhost:8000/football.php";
+
+// ——— user_id ———
+const UID_KEY = "user_id";
+let userId = localStorage.getItem(UID_KEY);
+if (!userId) {
+  userId = (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `uid-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  localStorage.setItem(UID_KEY, userId);
+}
+
+// ——— header’lı fetch ———
+function authedFetch(url, options = {}) {
+  const headers = Object.assign({}, options.headers, { "X-User-Id": userId });
+  return fetch(url, { ...options, headers });
+}
+
+// ——— Öncesi (preTrade) ———
 const preTrade = JSON.parse(localStorage.getItem("preTradeLeaderboard") || "[]");
 const preList = document.getElementById('pre-trade-leaderboard');
 
-// Kimya bonuslarını hesaplayıp finalPower alanını ekle
+// Kimya bonuslarını ekle ve sırala
 preTrade.forEach(entry => {
   const chemistry = parseInt(localStorage.getItem(`chemistry_before_${entry.username}`)) || 0;
   const bonus = chemistry * 0.3;
   entry.finalPower = Number(entry.power) + bonus;
   entry.bonus = bonus;
 });
-
-// 🔄 finalPower'a göre sırala (büyükten küçüğe)
 preTrade.sort((a, b) => b.finalPower - a.finalPower);
 
-// Listeyi render et
+// Listeyi bas
 preTrade.forEach((entry, index) => {
   const li = document.createElement('li');
   li.className = "leaderboard-item";
   if (index === 0) li.classList.add("champion");
-
   li.innerHTML = `
     <span class="rank">${index === 0 ? '🏆' : '#' + (index + 1)}</span>
     <span class="username">${entry.username}</span>
@@ -31,20 +47,20 @@ preTrade.forEach((entry, index) => {
   });
 });
 
+// ——— Sonrası (postTrade) ———
 const players = JSON.parse(localStorage.getItem("players") || "[]");
 const postTradeParams = new URLSearchParams();
-
-players.forEach((p) => {
+players.forEach(p => {
   const formation = localStorage.getItem(`selectedFormation_${p.name}`) || "4231";
   postTradeParams.append(`formation_${encodeURIComponent(p.name)}`, formation);
 });
 
-// 📡 SONRA leaderboard verisini çek
-fetch(`http://localhost:8000/football.php?action=get_leaderboard&${postTradeParams.toString()}`)
+// SONRA leaderboard’u çek
+authedFetch(`${API}?action=get_leaderboard&${postTradeParams.toString()}`)
   .then(res => res.json())
   .then(data => {
     console.log(postTradeParams.toString());
-    // Her entry'ye kimya bonuslu final power hesapla ve ekle
+
     data.forEach(entry => {
       const chemistry = parseInt(localStorage.getItem(`chemistry_after_${entry.username}`)) || 0;
       const bonus = chemistry * 0.3;
@@ -52,7 +68,6 @@ fetch(`http://localhost:8000/football.php?action=get_leaderboard&${postTradePara
       entry.bonus = bonus;
     });
 
-    // 🔄 Şimdi finalPower'a göre büyükten küçüğe sırala
     data.sort((a, b) => b.finalPower - a.finalPower);
 
     const list = document.getElementById('leaderboard-list');
@@ -60,7 +75,6 @@ fetch(`http://localhost:8000/football.php?action=get_leaderboard&${postTradePara
       const li = document.createElement('li');
       li.className = "leaderboard-item";
       if (index === 0) li.classList.add("champion");
-
       li.innerHTML = `
         <span class="rank">${index === 0 ? '🏆' : '#' + (index + 1)}</span>
         <span class="username">${entry.username}</span>
@@ -75,23 +89,19 @@ fetch(`http://localhost:8000/football.php?action=get_leaderboard&${postTradePara
     });
   });
 
-// 🔁 Reset
+// ——— Reset ———
 document.getElementById("restart-btn")?.addEventListener("click", async () => {
   try {
     localStorage.clear();
 
-    // Önce oyunla ilgili tabloları temizle
-    await fetch("http://localhost:8000/football.php?action=reset_game")
+    // Oyun tablolarını temizle
+    await authedFetch(`${API}?action=reset_game`).then(res => res.json());
+
+    // Kullanıcının takımlarını temizle
+    await authedFetch(`${API}?action=teams_truncate`, { method: "DELETE" })
       .then(res => res.json());
 
-    // Ardından teams tablosunu temizle
-    await fetch("http://localhost:8000/football.php?action=teams_truncate", {
-      method: "DELETE"
-    }).then(res => res.json());
-
-    // Bittiğinde başlangıç sayfasına dön
     window.location.href = "start.html";
-
   } catch (err) {
     console.error("Sunucu hatası:", err);
     alert("Tablolar temizlenemedi.");
