@@ -97,6 +97,41 @@ document.getElementById("generate-trade-fields-btn").addEventListener("click", a
     column.className = "user-trade-column";
     column.setAttribute("data-username", player.name);
 
+    // 👁 Gizle/Göster butonu
+    const toggleBtn = document.createElement("button");
+    toggleBtn.textContent = "👁 Gizle";
+    toggleBtn.className = "toggle-visibility-btn";
+    toggleBtn.style.marginBottom = "10px";
+
+    toggleBtn.addEventListener("click", () => {
+      const isHidden = column.classList.toggle("hidden-mode");
+      toggleBtn.textContent = isHidden ? "👁 Göster" : "👁 Gizle";
+
+      const selects = column.querySelectorAll("select");
+      selects.forEach(sel => {
+        const selectedOption = sel.options[sel.selectedIndex];
+        if (!selectedOption) return;
+
+        if (isHidden) {
+          // Orijinal text sakla
+          if (!selectedOption.dataset.originalText) {
+            selectedOption.dataset.originalText = selectedOption.textContent;
+          }
+          if (sel.value) {
+            selectedOption.textContent = "****";
+          }
+        } else {
+          // Orijinal text geri yükle
+          if (selectedOption.dataset.originalText) {
+            selectedOption.textContent = selectedOption.dataset.originalText;
+          }
+        }
+      });
+    });
+
+    // butonu column’un en üstüne ekle
+    column.appendChild(toggleBtn);
+
     // Koruma alanı
     const protectDiv = document.createElement("div");
     protectDiv.className = "trade-container";
@@ -270,12 +305,16 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
 
   const tradeContainers = document.querySelectorAll(".trade-container");
   const attemptedSteals = [];
+  trades.length = 0;       // önceki kalıntıları temizle
+  summaries.length = 0;
 
+  // Kullanıcı seçimlerini oku
   tradeContainers.forEach(container => {
     const stealEl = container.querySelector(".steal-select");
     const exchangeEl = container.querySelector(".exchange-select");
     const protectEls = container.querySelectorAll(".protect-select");
 
+    // Sadece koruma bloklarıysa atla
     if (!stealEl && !exchangeEl && protectEls.length > 0) return;
     if (!stealEl || !exchangeEl) return;
 
@@ -285,10 +324,15 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
     if (!stealValue || !exchangeValue) return;
 
     const [stolen_player, target_username] = stealValue.split("|");
-    attemptedSteals.push({ thief: username, target_username, stolen_player, exchange_player: exchangeValue });
+    attemptedSteals.push({
+      thief: username,
+      target_username,
+      stolen_player,
+      exchange_player: exchangeValue
+    });
   });
 
-  // Aynı oyuncuya çoklu talip -> iptal
+  // 1) Aynı oyuncuya çoklu talip -> iptal
   const stealCounts = {};
   attemptedSteals.forEach(t => {
     const key = `${t.target_username}|${t.stolen_player}`;
@@ -302,26 +346,52 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
         status: "fail",
         message: `${t.thief} kullanıcısı ${t.target_username}'dan ${t.stolen_player} oyuncusunu çalmaya çalıştı ancak bu oyuncuya birden fazla kişi talip olduğu için takas iptal edildi.`
       });
-    } else {
-      // Hedef kullanıcının korumaları
-      const protectSelects = document.querySelectorAll(`.protect-select[data-username="${t.target_username}"]`);
-      let isProtected = false;
-      protectSelects.forEach(select => {
-        if (select.value === t.stolen_player) isProtected = true;
-      });
-
-      if (isProtected) {
-        summaries.push({
-          status: "fail",
-          message: `${t.thief} kullanıcısı, ${t.target_username}'dan ${t.stolen_player} oyuncusunu çalmak istedi ama bu oyuncu koruma altında.`
-        });
-      } else {
-        trades.push(t);
-      }
+      return;
     }
+
+    // 2) Koruma kontrolü
+    const protectSelects = document.querySelectorAll(`.protect-select[data-username="${t.target_username}"]`);
+    let isProtected = false;
+    protectSelects.forEach(select => {
+      if (select.value === t.stolen_player) isProtected = true;
+    });
+
+    if (isProtected) {
+      summaries.push({
+        status: "fail",
+        message: `${t.thief} kullanıcısı, ${t.target_username}'dan ${t.stolen_player} oyuncusunu çalmak istedi ama bu oyuncu koruma altında.`
+      });
+      return;
+    }
+
+    // Aday takas (3. kuraldan sonra netleşecek)
+    trades.push(t);
   });
 
-  // Geçerli takas yoksa, sadece özet göster
+  // 3) SAHİBİNİN ÖNCELİĞİ KURALI:
+  // Bir kullanıcı bir oyuncuyu "exchange_player" olarak VERİYORSA,
+  // aynı turda o oyuncuyu sahibinden ÇALMAYA çalışan trade'leri iptal et.
+  // ownerOfferSet: "<ownerUsername>|<offeredPlayer>"
+  const ownerOfferSet = new Set(trades.map(t => `${t.thief}|${t.exchange_player}`));
+
+  const resolvedTrades = [];
+  for (const t of trades) {
+    // Bu trade, target'ın (sahibin) başka bir trade'de verdiği oyuncuyu mu çalıyor?
+    // Yani t.stolen_player'ı t.target_username şu turda veriyor mu?
+    const stealsOfferedOfOwner = ownerOfferSet.has(`${t.target_username}|${t.stolen_player}`);
+    if (stealsOfferedOfOwner) {
+      summaries.push({
+        status: "fail",
+        message: `${t.thief} → ${t.target_username} takası iptal: ${t.target_username}, ${t.stolen_player} oyuncusunu bu turda başka bir takasta veriyor (sahip verme öncelikli).`
+      });
+      continue;
+    }
+    resolvedTrades.push(t);
+  }
+  trades.length = 0;
+  trades.push(...resolvedTrades);
+
+  // Geçerli takas hiç kalmadıysa sadece özet göster
   if (trades.length === 0 && summaries.length > 0) {
     showSummary(summaries);
     return;
@@ -342,3 +412,5 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
     alert("Takas işlemleri sırasında hata oluştu.");
   }
 });
+
+
