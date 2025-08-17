@@ -120,7 +120,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
     }
 
-    // Belirli username için bu kullanıcının lineup'ı (+ players enrich)
     if ($action === 'get_lineup' && isset($_GET['username'])) {
         header('Content-Type: application/json; charset=utf-8');
         ini_set('display_errors', 0);
@@ -132,68 +131,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
             // Base: bu kullanıcının kayıtları
             $stmt = $pdo->prepare("
-                SELECT l.username, l.slot_no, l.player_name
+                SELECT l.username, l.slot_no, l.player_name, l.player_id, l.position AS saved_position, l.team_id AS saved_team_id
                 FROM saved_lineups l
                 WHERE l.user_id = ?
-                  AND l.username = ?
+                AND l.username = ?
                 ORDER BY l.slot_no ASC
             ");
             $stmt->execute([$userId, $username]);
             $base = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            try {
-                if (!empty($base)) {
-                    $names = array_values(array_unique(array_map(fn($r) => $r['player_name'], $base)));
-                    $in  = implode(',', array_fill(0, count($names), '?'));
-
-                    $sql = "
-                        SELECT p.player_name, p.`position` AS position, p.team_id
-                        FROM players p
-                        WHERE p.player_name IN ($in)
-                    ";
-                    $ps = $pdo->prepare($sql);
-                    $ps->execute($names);
-                    $extraRows = $ps->fetchAll(PDO::FETCH_ASSOC);
-
-                    $meta = [];
-                    foreach ($extraRows as $er) {
-                        $meta[$er['player_name']] = [
-                            'position' => $er['position'] ?? '',
-                            'team_id'  => $er['team_id'] ?? ''
-                        ];
+            if (!empty($base)) {
+                // Önce ID'lerle zenginleştir
+                $ids = array_values(array_unique(array_filter(array_map(fn($r)=>$r['player_id'] ?? null, $base))));
+                $metaById = [];
+                if (!empty($ids)) {
+                    $in = implode(',', array_fill(0, count($ids), '?'));
+                    $ps = $pdo->prepare("SELECT id, player_name, `position`, team_id FROM players WHERE id IN ($in)");
+                    $ps->execute($ids);
+                    foreach ($ps->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                        $metaById[(int)$row['id']] = $row;
                     }
-
-                    foreach ($base as &$r) {
-                        $m = $meta[$r['player_name']] ?? ['position'=>'', 'team_id'=>''];
-                        $r['position'] = $m['position'];
-                        $r['team_id']  = $m['team_id'];
-                    }
-                    unset($r);
                 }
 
-                echo json_encode($base, JSON_UNESCAPED_UNICODE);
-                exit;
+                // ID'si olmayanlar için (eski kayıtlar) isimle fallback (riskli ama geçici)
+                $names = array_values(array_unique(array_map(fn($r)=>$r['player_name'], array_filter($base, fn($r)=>empty($r['player_id'])))));
+                $metaByName = [];
+                if (!empty($names)) {
+                    $in = implode(',', array_fill(0, count($names), '?'));
+                    $ps2 = $pdo->prepare("SELECT player_name, `position`, team_id, id FROM players WHERE player_name IN ($in)");
+                    $ps2->execute($names);
+                    foreach ($ps2->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                        $metaByName[$row['player_name']] = $row; // birden fazla olabilir; ilkini alıyoruz (geçici)
+                    }
+                }
 
-            } catch (Throwable $joinErr) {
-                http_response_code(200);
-                echo json_encode([
-                    'needs_enrichment' => true,
-                    'rows' => $base,
-                    'join_error' => $joinErr->getMessage()
-                ], JSON_UNESCAPED_UNICODE);
-                exit;
+                foreach ($base as &$r) {
+                    $pid = $r['player_id'] ? (int)$r['player_id'] : null;
+                    $m = $pid && isset($metaById[$pid]) ? $metaById[$pid]
+                        : ($metaByName[$r['player_name']] ?? ['position'=>'', 'team_id'=>null, 'id'=>null]);
+
+                    // COALESCE: kaydedilmiş varsa onu kullan
+                    $r['player_id'] = $pid ?: ($m['id'] ?? null);
+                    $r['position']  = $r['saved_position'] ?: ($m['position'] ?? '');
+                    $r['team_id']   = $r['saved_team_id']  ?: ($m['team_id'] ?? null);
+                    unset($r['saved_position'], $r['saved_team_id']);
+                }
+                unset($r);
             }
+
+            echo json_encode($base, JSON_UNESCAPED_UNICODE);
+            exit;
 
         } catch (Throwable $e) {
             http_response_code(200);
             echo json_encode([
                 'success' => false,
-                'error'   => 'get_lineup base query failed',
+                'error'   => 'get_lineup failed',
                 'details' => $e->getMessage()
             ], JSON_UNESCAPED_UNICODE);
             exit;
         }
     }
+
 
     // Kullanıcıya ait verileri sıfırla (sadece bu kullanıcı)
     if ($action === 'reset_game') {
@@ -550,7 +549,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // save_lineup: bu kullanıcının belirli username için kadrosunu kaydet
     if (($_GET['action'] ?? null) === 'save_lineup') {
         try {
             if (!is_array($input) || empty($input) || empty($input[0]['username'])) {
@@ -562,15 +560,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->beginTransaction();
 
-            // Önce bu kullanıcı + username için sil
             $pdo->prepare("DELETE FROM saved_lineups WHERE user_id = ? AND username = ?")
                 ->execute([$userId, $username]);
 
-            // Sonra ekle
             $ins = $pdo->prepare("
-                INSERT INTO saved_lineups (user_id, username, slot_no, player_name)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO saved_lineups (user_id, username, slot_no, player_name, player_id, position, team_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
+
             foreach ($input as $item) {
                 if (!isset($item['slot_no'], $item['player_name'])) {
                     $pdo->rollBack();
@@ -578,7 +575,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo json_encode(['error' => 'Eksik parametre']);
                     exit;
                 }
-                $ins->execute([$userId, $username, (int)$item['slot_no'], $item['player_name']]);
+                $slotNo     = (int)$item['slot_no'];
+                $pname      = (string)$item['player_name'];
+                $playerId   = isset($item['player_id']) ? (int)$item['player_id'] : null;
+                $position   = isset($item['position']) ? (string)$item['position'] : null;
+                $teamId     = isset($item['team_id'])   ? (int)$item['team_id']   : null;
+
+                $ins->execute([$userId, $username, $slotNo, $pname, $playerId, $position, $teamId]);
             }
 
             $pdo->commit();
@@ -590,6 +593,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         exit;
     }
+
 
     // Bu kullanıcının game_players’ına oyuncu ekle
     if (($_GET['action'] ?? null) === 'add_game_player') {

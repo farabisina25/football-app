@@ -7,7 +7,6 @@ document.getElementById('user-title').innerText = `${username} - Seçtiği Oyunc
 
 const UID_KEY = "user_id";
 let userId = localStorage.getItem(UID_KEY);
-// user_id yoksa üret
 if (!userId) {
   userId = (window.crypto && crypto.randomUUID)
     ? crypto.randomUUID()
@@ -20,29 +19,29 @@ function authedFetch(url, options = {}) {
   return fetch(url, { ...options, headers });
 }
 
-// JSON güvenli fetch (tüm çağrılar header’lı)
 async function fetchJsonSafe(url, options = {}) {
-  // içeride authedFetch kullan
   const res = await authedFetch(url, options);
   const txt = await res.text();
   try { return JSON.parse(txt); }
   catch (e) { console.error("JSON parse edilemedi. Ham cevap:", txt); throw e; }
 }
 
-// Kadroda yer alan oyuncuların isimlerini burada tutacağız
-let existingLineupNames = [];
+// --- KADRODAKI OYUNCULARI ID BAZLI TUT ---
+let existingLineupIds = new Set();
+
+// İlk kadroyu çek + slotlara yaz
 fetchJsonSafe(`${API}?action=get_lineup&username=${encodeURIComponent(username)}`)
   .then(lineup => {
     if (Array.isArray(lineup)) {
-      existingLineupNames = lineup.map(p => (p.player_name || "").trim());
       lineup.forEach(player => {
         const slot = document.getElementById(`slot${player.slot_no}`);
-        if (slot) {
-          const position = player.position?.toUpperCase() || "POZİSYON YOK";
-          slot.innerText = `${player.player_name} - ${position}`;
-          slot.setAttribute("data-position", position);
-          slot.setAttribute("data-team", player.team_id || "");
-        }
+        if (!slot) return;
+        const position = player.position?.toUpperCase() || "POZİSYON YOK";
+        slot.innerText = `${player.player_name} - ${position}`;
+        slot.setAttribute("data-position", position);
+        slot.setAttribute("data-team", player.team_id || "");
+        slot.setAttribute("data-player-id", player.player_id || ""); // önemli
+        if (player.player_id) existingLineupIds.add(String(player.player_id));
       });
     }
   })
@@ -53,7 +52,7 @@ fetchJsonSafe(`${API}?action=get_lineup&username=${encodeURIComponent(username)}
       list.innerHTML = '<p>Bu kullanıcı henüz oyuncu seçmemiş.</p>';
       return;
     }
-    const positionOrder = ['ST','LW','RW','LM','RM','CAM','CM','CDM','LB','CB','RB','GK'];
+    // Pozisyona göre sırala
     data.sort((a,b) => {
       const posA = (a.position||'').toUpperCase();
       const posB = (b.position||'').toUpperCase();
@@ -61,10 +60,15 @@ fetchJsonSafe(`${API}?action=get_lineup&username=${encodeURIComponent(username)}
       const indexB = positionOrder.indexOf(posB);
       return (indexA===-1?999:indexA) - (indexB===-1?999:indexB);
     });
+
     data.forEach((player, index) => {
-      const rawName = player.player_name?.trim();
-      const position = player.position?.toUpperCase() || "POZİSYON YOK";
-      if (existingLineupNames.includes(rawName)) return;
+      const rawName  = (player.player_name || '').trim();
+      const position = (player.position || 'POZİSYON YOK').toUpperCase();
+      const pid      = player.player_id != null ? String(player.player_id) : "";
+
+      // Aynı isim olabilir; bu yüzden ID'ye göre filtrele
+      if (pid && existingLineupIds.has(pid)) return;
+
       const div = document.createElement('div');
       div.className = 'player-item';
       div.id = `player-${index + 1}`;
@@ -73,7 +77,8 @@ fetchJsonSafe(`${API}?action=get_lineup&username=${encodeURIComponent(username)}
       div.innerText = `${rawName} - ${position}`;
       div.setAttribute("data-position", position);
       div.setAttribute("data-team", player.team_id || "");
-      list.appendChild(div);
+      div.setAttribute("data-player-id", pid);
+      document.getElementById('player-list').appendChild(div);
     });
   })
   .catch(err => {
@@ -84,7 +89,6 @@ fetchJsonSafe(`${API}?action=get_lineup&username=${encodeURIComponent(username)}
 function sortPlayerList() {
   const list = document.getElementById("player-list");
   const items = Array.from(list.getElementsByClassName("player-item"));
-
   items.sort((a, b) => {
     const posA = a.getAttribute("data-position")?.toUpperCase() || "Z";
     const posB = b.getAttribute("data-position")?.toUpperCase() || "Z";
@@ -92,7 +96,6 @@ function sortPlayerList() {
     const indexB = positionOrder.indexOf(posB);
     return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
   });
-
   items.forEach(item => list.appendChild(item));
 }
 
@@ -104,27 +107,32 @@ function drop(ev) {
   const data = ev.dataTransfer.getData("text");
   const draggedElement = document.getElementById(data);
   const targetSlot = ev.target;
-
-  if (!targetSlot.classList.contains("player-slot")) return;
+  if (!draggedElement || !targetSlot.classList.contains("player-slot")) return;
 
   const draggedText = draggedElement.innerText.trim();
   const targetText  = targetSlot.innerText.trim();
 
+  // dragged meta
+  const draggedName = (draggedText.split(" - ")[0] || "").trim();
+  const draggedPos  = (draggedElement.getAttribute("data-position") || draggedText.split(" - ")[1] || "POZİSYON YOK").trim();
+  const draggedTeam = draggedElement.getAttribute("data-team") || "";
+  const draggedId   = draggedElement.getAttribute("data-player-id") || "";
+
   if (targetText === "") {
-    const draggedName = draggedText.split(" - ")[0].trim();
-    const draggedPosition = draggedText.split(" - ")[1]?.trim() || "POZİSYON YOK";
-    targetSlot.innerText = `${draggedName} - ${draggedPosition}`;
-    targetSlot.setAttribute("data-position", draggedPosition);
-    targetSlot.setAttribute("data-team", draggedElement.getAttribute("data-team") || ""); 
+    // Boş slota bırak
+    targetSlot.innerText = `${draggedName} - ${draggedPos}`;
+    targetSlot.setAttribute("data-position", draggedPos);
+    targetSlot.setAttribute("data-team", draggedTeam);
+    targetSlot.setAttribute("data-player-id", draggedId);
 
     if (draggedElement.classList.contains("player-item")) {
       draggedElement.remove();
-      const justName = draggedName;
-      if (!existingLineupNames.includes(justName)) existingLineupNames.push(justName);
+      if (draggedId) existingLineupIds.add(draggedId);
     } else if (draggedElement.classList.contains("player-slot")) {
       draggedElement.innerText = '';
       draggedElement.removeAttribute("data-position");
       draggedElement.removeAttribute("data-team");
+      draggedElement.removeAttribute("data-player-id");
     }
 
     targetSlot.classList.add('fade-in');
@@ -133,22 +141,24 @@ function drop(ev) {
   } else {
     if (draggedElement.classList.contains("player-slot")) {
       // slot-to-slot takas
-      const draggedPosition = draggedElement.getAttribute("data-position") || "POZİSYON YOK";
-      const targetPosition  = targetSlot.getAttribute("data-position")  || "POZİSYON YOK";
-      const draggedName = draggedText.split(" - ")[0].trim();
-      const targetName  = targetText.split(" - ")[0].trim();
+      const targetName = (targetText.split(" - ")[0] || "").trim();
+      const targetPos  = (targetSlot.getAttribute("data-position") || targetText.split(" - ")[1] || "POZİSYON YOK").trim();
+      const targetTeam = targetSlot.getAttribute("data-team") || "";
+      const targetId   = targetSlot.getAttribute("data-player-id") || "";
 
-      draggedElement.innerText = `${targetName} - ${targetPosition}`;
-      draggedElement.setAttribute("data-position", targetPosition);
+      // Swap text
+      draggedElement.innerText = `${targetName} - ${targetPos}`;
+      targetSlot.innerText     = `${draggedName} - ${draggedPos}`;
 
-      targetSlot.innerText = `${draggedName} - ${draggedPosition}`;
-      targetSlot.setAttribute("data-position", draggedPosition);
+      // Swap meta
+      draggedElement.setAttribute("data-position", targetPos);
+      targetSlot.setAttribute("data-position", draggedPos);
 
-      // team_id swap
-      const draggedTeam = draggedElement.getAttribute("data-team") || "";
-      const targetTeam  = targetSlot.getAttribute("data-team") || "";
       draggedElement.setAttribute("data-team", targetTeam);
       targetSlot.setAttribute("data-team", draggedTeam);
+
+      draggedElement.setAttribute("data-player-id", targetId);
+      targetSlot.setAttribute("data-player-id", draggedId);
 
       draggedElement.classList.add('fade-in');
       targetSlot.classList.add('fade-in');
@@ -156,32 +166,37 @@ function drop(ev) {
         draggedElement.classList.remove('fade-in');
         targetSlot.classList.remove('fade-in');
       }, 300);
+
     } else if (draggedElement.classList.contains("player-item")) {
-      // listeden slota
+      // listeden DOLU slota bırak
+      const targetName = (targetText.split(" - ")[0] || "").trim();
+      const targetPos  = (targetSlot.getAttribute("data-position") || targetText.split(" - ")[1] || "POZİSYON YOK").trim();
+      const targetTeam = targetSlot.getAttribute("data-team") || "";
+      const targetId   = targetSlot.getAttribute("data-player-id") || "";
+
+      // Hedefteki oyuncuyu listeye geri koy
       const newListItem = document.createElement("div");
       newListItem.className = 'player-item fade-in';
-      const targetName = targetText.split(" - ")[0].trim();
-      const targetPosition = targetSlot.getAttribute("data-position") || targetText.split(" - ")[1]?.trim() || "POZİSYON YOK";
-      newListItem.innerText = `${targetName} - ${targetPosition}`;
+      newListItem.innerText = `${targetName} - ${targetPos}`;
       newListItem.id = `player-${Date.now()}`;
       newListItem.draggable = true;
       newListItem.ondragstart = drag;
-      newListItem.setAttribute("data-position", targetPosition);
-      newListItem.setAttribute("data-team", targetSlot.getAttribute("data-team") || "");
-
+      newListItem.setAttribute("data-position", targetPos);
+      newListItem.setAttribute("data-team", targetTeam);
+      newListItem.setAttribute("data-player-id", targetId);
       document.getElementById("player-list").appendChild(newListItem);
       sortPlayerList();
+      if (targetId) existingLineupIds.delete(targetId); // artık kadrodan çıktı
 
-      const draggedName = draggedText.split(" - ")[0].trim();
-      const draggedPosition = draggedText.split(" - ")[1]?.trim() || "POZİSYON YOK";
-      const draggedTeam = draggedElement.getAttribute("data-team") || "";
-      targetSlot.innerText = `${draggedName} - ${draggedPosition}`;
-      targetSlot.setAttribute("data-position", draggedPosition);
+      // Sürüklenen oyuncuyu slota yaz
+      targetSlot.innerText = `${draggedName} - ${draggedPos}`;
+      targetSlot.setAttribute("data-position", draggedPos);
       targetSlot.setAttribute("data-team", draggedTeam);
+      targetSlot.setAttribute("data-player-id", draggedId);
 
+      // Listeden sürüklenen item'ı kaldır
       draggedElement.remove();
-
-      if (!existingLineupNames.includes(draggedName)) existingLineupNames.push(draggedName);
+      if (draggedId) existingLineupIds.add(draggedId);
 
       targetSlot.classList.add('fade-in');
       setTimeout(() => targetSlot.classList.remove('fade-in'), 300);
@@ -201,15 +216,17 @@ function dropToList(ev) {
   if (!draggedElement) return;
 
   const playerText = draggedElement.innerText.trim();
-  const playerName = playerText.split(" - ")[0].trim();
-  const playerPosition = draggedElement.getAttribute("data-position") || playerText.split(" - ")[1]?.trim() || "POZİSYON YOK";
+  const playerName = (playerText.split(" - ")[0] || "").trim();
+  const playerPosition = (draggedElement.getAttribute("data-position") || playerText.split(" - ")[1] || "POZİSYON YOK").trim();
   const playerTeam = draggedElement.getAttribute("data-team") || "";
+  const playerId = draggedElement.getAttribute("data-player-id") || "";
 
   const newPlayer = document.createElement('div');
   newPlayer.className = 'player-item fade-in';
   newPlayer.innerText = `${playerName} - ${playerPosition}`;
   newPlayer.setAttribute("data-position", playerPosition);
   newPlayer.setAttribute("data-team", playerTeam);
+  newPlayer.setAttribute("data-player-id", playerId);
   newPlayer.setAttribute("draggable", "true");
   newPlayer.ondragstart = drag;
   newPlayer.id = `player-${Date.now()}`;
@@ -221,6 +238,8 @@ function dropToList(ev) {
     draggedElement.innerText = '';
     draggedElement.removeAttribute("data-position");
     draggedElement.removeAttribute("data-team");
+    draggedElement.removeAttribute("data-player-id");
+    if (playerId) existingLineupIds.delete(playerId);
   } else {
     draggedElement.remove();
   }
@@ -236,6 +255,7 @@ function updateSlotDraggables() {
     if (slot) {
       const text = slot.innerText.trim();
       if (text !== "") {
+        slot.classList.add("player-slot"); // güvence
         slot.draggable = true;
         slot.ondragstart = drag;
       } else {
@@ -246,14 +266,20 @@ function updateSlotDraggables() {
   }
 }
 
+// === SUNUCUYA ID/POZ/TAKIMLA KAYDET ===
 function autoSaveLineup() {
   const lineup = [];
   for (let i = 1; i <= 11; i++) {
     const slot = document.getElementById(`slot${i}`);
     const playerText = slot.innerText.trim();
     if (playerText !== "") {
-      const playerName = playerText.split(" - ")[0].trim();
-      lineup.push({ username, slot_no: i, player_name: playerName });
+      const [namePart, posPart] = playerText.split(" - ");
+      const playerName = (namePart || "").trim();
+      const position   = (slot.getAttribute("data-position") || posPart || "POZİSYON YOK").trim();
+      const teamId     = slot.getAttribute("data-team") || null;
+      const playerId   = slot.getAttribute("data-player-id") || null;
+
+      lineup.push({ username, slot_no: i, player_name: playerName, player_id: playerId, position, team_id: teamId });
     }
   }
 
@@ -301,13 +327,11 @@ function syncSvgSize() {
 }
 
 function calculateChemistryLinks() {
-  // sınıfları temizle
   for (let i = 1; i <= 11; i++) {
     const slot = document.getElementById(`slot${i}`);
     slot?.classList.remove("chemistry-link");
   }
 
-  // takım eşleşmelerini topla
   const teamMap = {};
   for (let i = 1; i <= 11; i++) {
     const slot = document.getElementById(`slot${i}`);
@@ -373,7 +397,7 @@ function calculateChemistryLinks() {
   }
 }
 
-// Sayfanın alt kısmına kullanıcı linkleri
+// Kullanıcı linkleri (değişmedi)
 (function renderUserLinks() {
   const playersRaw = localStorage.getItem('players');
   if (!playersRaw) return;
@@ -423,18 +447,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const allPlayers = JSON.parse(localStorage.getItem("players") || "[]");
   applySlotBordersForAllSlots(username, allPlayers);
 
+  // get_lineup tekrar (ilk başta da çağırdık ama DOMContentLoaded akışında kimya vs.)
   fetchJsonSafe(`${API}?action=get_lineup&username=${encodeURIComponent(username)}`)
     .then(lineup => {
       if (Array.isArray(lineup)) {
-        existingLineupNames = lineup.map(p => p.player_name.trim());
         lineup.forEach(player => {
           const slot = document.getElementById(`slot${player.slot_no}`);
-          if (slot) {
-            const position = player.position?.toUpperCase() || "POZİSYON YOK";
-            slot.innerText = `${player.player_name} - ${position}`;
-            slot.setAttribute("data-position", position);
-            slot.setAttribute("data-team", player.team_id || "");
-          }
+          if (!slot) return;
+          const position = player.position?.toUpperCase() || "POZİSYON YOK";
+          slot.innerText = `${player.player_name} - ${position}`;
+          slot.setAttribute("data-position", position);
+          slot.setAttribute("data-team", player.team_id || "");
+          slot.setAttribute("data-player-id", player.player_id || "");
+          if (player.player_id) existingLineupIds.add(String(player.player_id));
         });
         updateSlotDraggables();
         syncSvgSize();
