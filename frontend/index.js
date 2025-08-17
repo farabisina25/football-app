@@ -229,8 +229,8 @@ function spinWheel() {
       const selectedIndex = Math.floor(pointerAngle / sliceAngle);
 
       drawRotatedWheel(angle, selectedIndex);
-      setLineupsDisabled(false);
       setTimeout(() => {
+        setLineupsDisabled(false);
         handleTeamSelection(selectedIndex);
       }, 700);
 
