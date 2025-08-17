@@ -332,14 +332,31 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
     });
   });
 
+  // 0) Aynı kullanıcının aynı turda aynı "exchange_player"ı birden fazla takasta vermesini engelle
+  const candidateSteals = [];
+  const seenByThiefAndExchange = new Set();
+
+  attemptedSteals.forEach(t => {
+    const key = `${t.thief}|${t.exchange_player}`;
+    if (seenByThiefAndExchange.has(key)) {
+      summaries.push({
+        status: "fail",
+        message: `${t.thief} kullanıcısı aynı turda ${t.exchange_player} oyuncusunu birden fazla takasta veremez. Bu takas iptal edildi.`
+      });
+    } else {
+      seenByThiefAndExchange.add(key);
+      candidateSteals.push(t);
+    }
+  });
+
   // 1) Aynı oyuncuya çoklu talip -> iptal
   const stealCounts = {};
-  attemptedSteals.forEach(t => {
+  candidateSteals.forEach(t => {
     const key = `${t.target_username}|${t.stolen_player}`;
     stealCounts[key] = (stealCounts[key] || 0) + 1;
   });
 
-  attemptedSteals.forEach(t => {
+  candidateSteals.forEach(t => {
     const key = `${t.target_username}|${t.stolen_player}`;
     if (stealCounts[key] > 1) {
       summaries.push({
@@ -382,7 +399,7 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
     if (stealsOfferedOfOwner) {
       summaries.push({
         status: "fail",
-        message: `${t.thief} → ${t.target_username} takası iptal: ${t.target_username}, ${t.stolen_player} oyuncusunu bu turda başka bir takasta veriyor (sahip verme öncelikli).`
+        message: `${t.thief} kullanıcısı, ${t.target_username}'dan ${t.stolen_player} oyuncusunu çalmak istedi ama bu oyuncu artık o takımda değil.`
       });
       continue;
     }
@@ -412,5 +429,6 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
     alert("Takas işlemleri sırasında hata oluştu.");
   }
 });
+
 
 
