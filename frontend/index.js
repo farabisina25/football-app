@@ -47,6 +47,15 @@ let currentTurn = 0;
 let maxTurns = 11;
 let isWaitingForTeamSelection = true;
 
+const viewLineupsBtn = document.getElementById("view-lineups-btn");
+function setLineupsDisabled(disabled) {
+  if (!viewLineupsBtn) return;
+  viewLineupsBtn.disabled = disabled;
+  //İstersen ufak bir görsel geri bildirim:
+  viewLineupsBtn.style.opacity = disabled ? "0.6" : "1";
+  viewLineupsBtn.style.cursor = disabled ? "not-allowed" : "pointer";
+}
+
 function disableAllAddButtons(disabled) {
   document.querySelectorAll(".add-button").forEach(btn => {
     btn.disabled = disabled;
@@ -197,7 +206,7 @@ function drawRotatedWheel(angleOffset, highlightIndex = -1) {
 function spinWheel() {
   if (spinning || !isWaitingForTeamSelection) return;
   spinning = true;
-
+  setLineupsDisabled(true);
   velocity = Math.random() * 0.1 + 0.15;
 
   function animate() {
@@ -220,7 +229,7 @@ function spinWheel() {
       const selectedIndex = Math.floor(pointerAngle / sliceAngle);
 
       drawRotatedWheel(angle, selectedIndex);
-
+      setLineupsDisabled(false);
       setTimeout(() => {
         handleTeamSelection(selectedIndex);
       }, 700);
@@ -363,6 +372,7 @@ document.getElementById("end-game-btn").addEventListener("click", async () => {
 });
 
 document.getElementById("view-lineups-btn").onclick = () => {
+  if (spinning) return;
   const username = players[currentPlayerIndex].name;
   localStorage.setItem("fromPage", "index");
   window.location.href = `user_players.html?username=${encodeURIComponent(username)}&from=index`;
@@ -395,7 +405,7 @@ loadTeams().then(async () => {
   const savedIndex = localStorage.getItem("selectedTeamIndex");
   await calculateCurrentTurn();
   updateTurnInfo();
-
+  setLineupsDisabled(spinning);
   if (savedIndex !== null && isWaitingForTeamSelection) {
     await handleTeamSelection(parseInt(savedIndex, 10));
     return;
