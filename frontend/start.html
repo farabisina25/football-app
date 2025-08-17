@@ -44,7 +44,32 @@
       </div>
     </div>
   </div>
+<!-- Modern Footer -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="logo-circle" aria-hidden="true">⚽</div>
+        <div class="brand-text">
+          <strong>Eleven Draft</strong>
+          <span>Kadronu kur, eğlen!</span>
+        </div>
+      </div>
 
+      <nav class="footer-nav" aria-label="Alt menü">
+        <a href="about.html" class="footer-link">Hakkımızda</a>
+        <a href="privacy.html" class="footer-link">Gizlilik Politikası</a>
+        <a href="contact.html" class="footer-link">İletişim</a>
+      </nav>
+
+      <div class="footer-meta">
+        <small>© <span id="year"></span> Eleven Draft — Tüm hakları saklıdır.</small>
+      </div>
+    </div>
+  </footer>
+  <script>
+    // Yıl otomatik
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
   <script src="start.js"></script>
 </body>
 </html>

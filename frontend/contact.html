@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>İletişim | Eleven Draft</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="pages.css" />
+</head>
+<body>
+  <header class="header-bar">
+    <a href="start.html">← Oyuna Dön</a>
+    <nav>
+      <a href="about.html">Hakkımızda</a>
+      <a href="privacy.html">Gizlilik</a>
+      <a href="contact.html" aria-current="page">İletişim</a>
+    </nav>
+  </header>
+
+  <main class="page">
+    <section class="card">
+      <h1>İletişim</h1>
+      <p>Bizimle e-posta üzerinden iletişime geçebilirsiniz: 
+        <a href="mailto:farabisina23@gmail.com">farabisina23@gmail.com</a>
+      </p>
+
+      <h2>İletişim Formu</h2>
+      <form class="form-grid" method="post" action="mailto:farabisina23@gmail.com" enctype="text/plain">
+        <div>
+          <label for="name">Ad Soyad</label>
+          <input id="name" name="AdSoyad" type="text" placeholder="Adınız Soyadınız" required />
+        </div>
+        <div>
+          <label for="email">E-posta</label>
+          <input id="email" name="Email" type="email" placeholder="ornek@eposta.com" required />
+        </div>
+        <div class="full">
+          <label for="subject">Konu</label>
+          <input id="subject" name="Konu" type="text" placeholder="Konu başlığı" required />
+        </div>
+        <div class="full">
+          <label for="message">Mesaj</label>
+          <textarea id="message" name="Mesaj" placeholder="Mesajınızı buraya yazın..." required></textarea>
+        </div>
+        <div class="full">
+          <button type="submit">Gönder</button>
+        </div>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
