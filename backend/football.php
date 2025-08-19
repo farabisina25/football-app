@@ -314,9 +314,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         };
 
         try {
-            // sadece bu kullanıcının lineup'ları
+            // sadece bu kullanıcının lineup'ları (ID ve pozisyonu da al)
             $stmt = $pdo->prepare("
-                SELECT l.username, l.slot_no, l.player_name
+                SELECT 
+                    l.username,
+                    l.slot_no,
+                    l.player_id,
+                    l.player_name,
+                    UPPER(TRIM(l.position)) AS saved_position,
+                    l.team_id AS saved_team_id
                 FROM saved_lineups l
                 WHERE l.user_id = ?
                 ORDER BY l.username, l.slot_no
@@ -334,40 +340,115 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 }
             }
 
-            // players meta
-            $names = array_values(array_unique(array_map(fn($r) => $r['player_name'], $lineups)));
-            $in = implode(',', array_fill(0, count($names), '?'));
-
-            $sql = "
-                SELECT 
-                    p.player_name,
-                    UPPER(TRIM(p.`position`)) AS position,
-                    CASE WHEN p.ovr IS NULL OR p.ovr = '' THEN 0 ELSE p.ovr END AS ovr
-                FROM players p
-                WHERE CONVERT(p.player_name USING utf8mb4) COLLATE utf8mb4_unicode_ci IN ($in)
-            ";
-            $ps = $pdo->prepare($sql);
-            $ps->execute($names);
-            $rows = $ps->fetchAll(PDO::FETCH_ASSOC);
-
-            $meta = [];
-            foreach ($rows as $r) {
-                $meta[$r['player_name']] = [
-                    'position' => $normalizePos($r['position'] ?? ''),
-                    'ovr'      => is_numeric($r['ovr'] ?? null) ? (float)$r['ovr'] : 0.0
-                ];
+            // --- players meta: önce ID üzerinden çek
+            $ids = array_values(array_unique(array_filter(array_map(
+                fn($r) => $r['player_id'] ? (int)$r['player_id'] : null, 
+                $lineups
+            ))));
+            $metaById = [];
+            if (!empty($ids)) {
+                $in = implode(',', array_fill(0, count($ids), '?'));
+                $ps = $pdo->prepare("
+                    SELECT 
+                        id,
+                        player_name,
+                        UPPER(TRIM(`position`)) AS position,
+                        team_id,
+                        CASE WHEN ovr IS NULL OR ovr = '' THEN 0 ELSE ovr END AS ovr
+                    FROM players
+                    WHERE id IN ($in)
+                ");
+                $ps->execute($ids);
+                foreach ($ps->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $metaById[(int)$row['id']] = [
+                        'name'     => $row['player_name'],
+                        'position' => $row['position'],
+                        'team_id'  => $row['team_id'],
+                        'ovr'      => is_numeric($row['ovr']) ? (float)$row['ovr'] : 0.0,
+                    ];
+                }
             }
+
+            // ID'siz kalanlar için isim + pozisyon ile (gerekirse team_id ile) adayları getir
+            $needNameLookups = array_values(array_filter($lineups, fn($r) => empty($r['player_id'])));
+            $metaByName = []; // key: name => [rows...]
+            if (!empty($needNameLookups)) {
+                $names = array_values(array_unique(array_map(fn($r) => $r['player_name'], $needNameLookups)));
+                $in = implode(',', array_fill(0, count($names), '?'));
+                $ps2 = $pdo->prepare("
+                    SELECT 
+                        id,
+                        player_name,
+                        UPPER(TRIM(`position`)) AS position,
+                        team_id,
+                        CASE WHEN ovr IS NULL OR ovr = '' THEN 0 ELSE ovr END AS ovr
+                    FROM players
+                    WHERE player_name IN ($in)
+                ");
+                $ps2->execute($names);
+                foreach ($ps2->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $metaByName[$row['player_name']][] = [
+                        'id'       => (int)$row['id'],
+                        'position' => $row['position'],
+                        'team_id'  => $row['team_id'],
+                        'ovr'      => is_numeric($row['ovr']) ? (float)$row['ovr'] : 0.0,
+                    ];
+                }
+            }
+
+            // pozisyon normalizasyonu
+            $posMap = [
+                'RWB'=>'RB','LWB'=>'LB','CF'=>'ST',
+                'DM'=>'CDM','AMC'=>'CAM','MC'=>'CM','ML'=>'LM','MR'=>'RM',
+                'RCB'=>'CB','LCB'=>'CB','CBR'=>'CB','CBL'=>'CB'
+            ];
+            $normalizePos = function($p) use ($posMap){
+                $p = strtoupper(trim((string)$p));
+                return $posMap[$p] ?? $p;
+            };
+
+            // formasyon katsayıları (seninkini aynen kullandım – kesit)
+            $formationMultipliers = /* ... senin tablolar ... */ $formationMultipliers;
 
             // puanlama
             $leaderboard = [];
             foreach ($lineups as $entry) {
                 $username = $entry['username'];
                 $slot     = (int)$entry['slot_no'];
+
+                // --- Meta çözümleme (ID > isim+pozisyon > isim)
+                $pid = $entry['player_id'] ? (int)$entry['player_id'] : null;
+                $savedPos = $normalizePos($entry['saved_position'] ?? '');
+                $savedTid = $entry['saved_team_id'] ?? null;
                 $pname    = $entry['player_name'];
 
-                $m = $meta[$pname] ?? ['position'=>'', 'ovr'=>0.0];
-                $position = $normalizePos($m['position']);
-                $ovr      = (float)($m['ovr'] ?? 0);
+                $position = '';
+                $ovr      = 0.0;
+
+                if ($pid && isset($metaById[$pid])) {
+                    $position = $normalizePos($metaById[$pid]['position']);
+                    $ovr      = $metaById[$pid]['ovr'];
+                } else {
+                    $candidates = $metaByName[$pname] ?? [];
+                    // 1) isim+pozisyon eşleşmesi
+                    $hit = null;
+                    foreach ($candidates as $c) {
+                        if ($normalizePos($c['position']) === $savedPos) {
+                            $hit = $c;
+                            // 1a) varsa team_id tam eşleşmesine öncelik ver
+                            if ($savedTid !== null && (int)$c['team_id'] === (int)$savedTid) {
+                                $hit = $c; break;
+                            }
+                        }
+                    }
+                    // 2) bulunamazsa, sadece isimden (ilk kayıt) – yine de pozisyonu normalize et
+                    if (!$hit && !empty($candidates)) $hit = $candidates[0];
+
+                    if ($hit) {
+                        $position = $normalizePos($hit['position']);
+                        $ovr      = $hit['ovr'];
+                    }
+                }
 
                 $formation   = $userFormations[$username] ?? '4231';
                 $multipliers = $formationMultipliers[$formation] ?? [];
@@ -385,18 +466,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $leaderboard[$username]['total']  += $adjusted_ovr;
                 $leaderboard[$username]['count']  += 1;
                 $leaderboard[$username]['details'][] = [
-                    'player' => $pname,
-                    'position' => $position,
-                    'slot' => $slot,
-                    'original_ovr' => $ovr,
-                    'multiplier' => $multiplier,
-                    'adjusted_ovr' => $adjusted_ovr
+                    'player'        => $pname,
+                    'position'      => $position,
+                    'slot'          => $slot,
+                    'original_ovr'  => $ovr,
+                    'multiplier'    => $multiplier,
+                    'adjusted_ovr'  => $adjusted_ovr
                 ];
             }
 
             $result = [];
             foreach ($leaderboard as $user => $data) {
-                $avg = $data['count'] > 0 ? $data['total'] / $data['count'] : 0;
+                $avg = $data['count'] > 0 ? $data['total'] / $data['count'] : 0.0;
                 $result[] = [
                     'username'  => $user,
                     'formation' => $data['formation'],
@@ -404,7 +485,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     'players'   => $data['details']
                 ];
             }
-            usort($result, fn($a, $b) => $b['power'] <=> $a['power']);
+            usort($result, fn($a,$b) => $b['power'] <=> $a['power']);
 
             echo json_encode($result, JSON_UNESCAPED_UNICODE);
             exit;
@@ -479,75 +560,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Takas işlemleri (bu kullanıcıya ait kayıtlar üzerinde)
     if (($_GET["action"] ?? null) == "process_trades") {
-        $data = is_array($input) ? $input : [];
-        $summary = [];
+        try {
+            $data = is_array($input) ? $input : [];
+            $summary = [];
 
-        // 1. Korunan oyuncular
-        $protectedPlayers = [];
-        foreach ($data as $trade) {
-            if (!empty($trade["protected_player"])) {
-                $protectedPlayers[] = [
-                    "username" => $trade["thief"],
-                    "player_name" => $trade["protected_player"]
-                ];
+            // Koruma listesi (opsiyonel) — ID bazlı bekliyoruz
+            $protectedPlayers = [];
+            foreach ($data as $trade) {
+                if (!empty($trade["protected_player_id"])) {
+                    $protectedPlayers[] = (int)$trade["protected_player_id"];
+                }
             }
-        }
+            $protectedSet = array_flip($protectedPlayers); // hızlı lookup
 
-        // Sadece bu kullanıcının verileri
-        $stmtDeleteLineup = $pdo->prepare("
-            DELETE FROM saved_lineups 
-            WHERE user_id = ? AND username = ? AND player_name = ?
-        ");
-        $stmtUpdateGamePlayer = $pdo->prepare("
-            UPDATE game_players gp 
-            JOIN players p ON gp.player_id = p.id 
-            SET gp.username = ?
-            WHERE gp.user_id = ?
-              AND p.player_name = ?
-        ");
+            // Sadece bu kullanıcıya ait kayıtlar üzerinde, ID bazlı sorgular
+            $stmtDeleteLineupById = $pdo->prepare("
+                DELETE FROM saved_lineups
+                WHERE user_id = ?
+                AND username = ?
+                AND player_id = ?
+            ");
+            $stmtUpdateGamePlayerById = $pdo->prepare("
+                UPDATE game_players
+                SET username = ?
+                WHERE user_id = ?
+                AND player_id = ?
+            ");
 
-        foreach ($data as $trade) {
-            if (
-                empty($trade["thief"]) || empty($trade["target_username"]) ||
-                empty($trade["stolen_player"]) || empty($trade["exchange_player"])
-            ) {
-                $summary[] = ["status" => "fail", "message" => "Eksik bilgi nedeniyle bir takas işlenemedi."];
-                continue;
-            }
-            $thief    = $trade["thief"];
-            $target   = $trade["target_username"];
-            $stolen   = $trade["stolen_player"];
-            $exchange = $trade["exchange_player"];
+            // Mesajlarda isim yazmak için
+            $nameStmt = $pdo->prepare("SELECT player_name FROM players WHERE id = ?");
 
-            $isProtected = false;
-            foreach ($protectedPlayers as $prot) {
-                if ($prot["player_name"] === $stolen) { $isProtected = true; break; }
-            }
+            foreach ($data as $trade) {
+                // Beklenen alanlar: thief, target_username, stolen_player_id, exchange_player_id
+                if (
+                    empty($trade["thief"]) ||
+                    empty($trade["target_username"]) ||
+                    empty($trade["stolen_player_id"]) ||
+                    empty($trade["exchange_player_id"])
+                ) {
+                    $summary[] = ["status" => "fail", "message" => "Eksik bilgi nedeniyle bir takas işlenemedi."];
+                    continue;
+                }
 
-            if ($isProtected) {
+                $thief    = (string)$trade["thief"];
+                $target   = (string)$trade["target_username"];
+                $stolenId = (int)$trade["stolen_player_id"];
+                $giveId   = (int)$trade["exchange_player_id"];
+
+                // Koruma kontrolü
+                if (isset($protectedSet[$stolenId])) {
+                    $nameStmt->execute([$stolenId]); $stolenName = $nameStmt->fetchColumn() ?: "Bilinmeyen";
+                    $summary[] = [
+                        "status"  => "fail",
+                        "message" => "$thief kullanıcısı, $target'dan $stolenName oyuncusunu çalmak istedi ama bu oyuncu koruma altında."
+                    ];
+                    continue;
+                }
+
+                // İsimleri mesaj için çek
+                $nameStmt->execute([$stolenId]); $stolenName = $nameStmt->fetchColumn() ?: "Bilinmeyen";
+                $nameStmt->execute([$giveId]);   $giveName   = $nameStmt->fetchColumn() ?: "Bilinmeyen";
+
+                // Takas uygula (tamamı user_id ile kısıtlı) — ID ile
+                $stmtDeleteLineupById->execute([$userId, $target, $stolenId]);
+                $stmtUpdateGamePlayerById->execute([$thief,  $userId, $stolenId]);
+
+                $stmtDeleteLineupById->execute([$userId, $thief,  $giveId]);
+                $stmtUpdateGamePlayerById->execute([$target, $userId, $giveId]);
+
                 $summary[] = [
-                    "status" => "fail",
-                    "message" => "$thief kullanıcısı, $target'dan $stolen oyuncusunu çalmak istedi ama bu oyuncu koruma altında."
+                    "status"  => "success",
+                    "message" => "$thief, $target'dan $stolenName oyuncusunu aldı ve $giveName oyuncusunu verdi."
                 ];
-                continue;
             }
 
-            // Takas uygula (tamamı user_id ile kısıtlı)
-            $stmtDeleteLineup->execute([$userId, $target,  $stolen]);
-            $stmtUpdateGamePlayer->execute([$thief,  $userId, $stolen]);
+            echo json_encode(["success" => true, "message" => "Takaslar işlendi.", "summary" => $summary], JSON_UNESCAPED_UNICODE);
+            exit;
 
-            $stmtDeleteLineup->execute([$userId, $thief,   $exchange]);
-            $stmtUpdateGamePlayer->execute([$target, $userId, $exchange]);
-
-            $summary[] = [
-                "status" => "success",
-                "message" => "$thief, $target'dan $stolen oyuncusunu aldı ve $exchange oyuncusunu verdi."
-            ];
+        } catch (Throwable $e) {
+            http_response_code(500);
+            echo json_encode(["success" => false, "error" => "process_trades failed", "details" => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            exit;
         }
-
-        echo json_encode(["success" => true, "message" => "Takaslar işlendi.", "summary" => $summary]);
-        exit;
     }
+
 
     if (($_GET['action'] ?? null) === 'save_lineup') {
         try {

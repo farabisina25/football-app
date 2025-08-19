@@ -175,26 +175,28 @@ function loadTeamPlayers(username, type) {
     .then(data => {
       const selects = document.querySelectorAll(`select.${type}-select[data-username="${username}"]`);
 
-      const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
-      const sortedPlayers = data.sort((a, b) => {
+      const positionOrder = ['ST','LW','RW','LM','RM','CAM','CM','CDM','LB','CB','RB','GK'];
+      const sortedPlayers = data.sort((a,b) => {
         const posA = (a.position || '').toUpperCase();
         const posB = (b.position || '').toUpperCase();
-        const indexA = positionOrder.indexOf(posA);
-        const indexB = positionOrder.indexOf(posB);
-        return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+        const ia = positionOrder.indexOf(posA);
+        const ib = positionOrder.indexOf(posB);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
       });
 
       selects.forEach(select => {
         select.innerHTML = `<option disabled selected>Oyuncu Seç</option>`;
         sortedPlayers.forEach(p => {
           const option = document.createElement("option");
-          option.value = p.player_name;
+          option.value = p.player_id; // 🔴 ID
           option.textContent = `${p.player_name} (${p.position})`;
+          option.dataset.playerName = p.player_name; // özet metni için
           select.appendChild(option);
         });
       });
     });
 }
+
 
 // Rakibin oyuncuları (steal-select için)
 function loadOpponentPlayers(opponentName, forUsername) {
@@ -204,26 +206,28 @@ function loadOpponentPlayers(opponentName, forUsername) {
         `select.steal-select[data-username="${forUsername}"][data-target="${opponentName}"]`
       );
 
-      const positionOrder = ['ST', 'LW', 'RW', 'LM', 'RM', 'CAM', 'CM', 'CDM', 'LB', 'CB', 'RB', 'GK'];
-      const sortedPlayers = data.sort((a, b) => {
+      const positionOrder = ['ST','LW','RW','LM','RM','CAM','CM','CDM','LB','CB','RB','GK'];
+      const sortedPlayers = data.sort((a,b) => {
         const posA = (a.position || '').toUpperCase();
         const posB = (b.position || '').toUpperCase();
-        const indexA = positionOrder.indexOf(posA);
-        const indexB = positionOrder.indexOf(posB);
-        return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+        const ia = positionOrder.indexOf(posA);
+        const ib = positionOrder.indexOf(posB);
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
       });
 
       selects.forEach(select => {
         select.innerHTML = `<option disabled selected>Oyuncu Seç</option>`;
         sortedPlayers.forEach(p => {
           const option = document.createElement("option");
-          option.value = `${p.player_name}|${opponentName}`;
+          option.value = `${p.player_id}|${opponentName}`; // 🔴 ID + target
           option.textContent = `${p.player_name} (${p.position})`;
+          option.dataset.playerName = p.player_name; // özet için
           select.appendChild(option);
         });
       });
     });
 }
+
 
 // Trade yok/koruma yok ise ilk skorlamayı al ve final'e geç
 async function precomputeAndGoFinal() {
@@ -308,13 +312,13 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
   trades.length = 0;       // önceki kalıntıları temizle
   summaries.length = 0;
 
-  // Kullanıcı seçimlerini oku
+  // Kullanıcı seçimlerini oku (ID bazlı)
   tradeContainers.forEach(container => {
     const stealEl = container.querySelector(".steal-select");
     const exchangeEl = container.querySelector(".exchange-select");
     const protectEls = container.querySelectorAll(".protect-select");
 
-    // Sadece koruma bloklarıysa atla
+    // sadece koruma bloklarıysa atla
     if (!stealEl && !exchangeEl && protectEls.length > 0) return;
     if (!stealEl || !exchangeEl) return;
 
@@ -323,25 +327,31 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
     const exchangeValue = exchangeEl.value;
     if (!stealValue || !exchangeValue) return;
 
-    const [stolen_player, target_username] = stealValue.split("|");
+    const [stolen_player_id, target_username] = stealValue.split("|");
+    const stolenOpt = stealEl.options[stealEl.selectedIndex];
+    const exchangeOpt = exchangeEl.options[exchangeEl.selectedIndex];
+
     attemptedSteals.push({
       thief: username,
       target_username,
-      stolen_player,
-      exchange_player: exchangeValue
+      stolen_player_id: parseInt(stolen_player_id, 10),
+      exchange_player_id: parseInt(exchangeValue, 10),
+      // mesaj için isimler (opsiyonel)
+      stolen_player_name: stolenOpt?.dataset.playerName || '',
+      exchange_player_name: exchangeOpt?.dataset.playerName || ''
     });
   });
+
 
   // 0) Aynı kullanıcının aynı turda aynı "exchange_player"ı birden fazla takasta vermesini engelle
   const candidateSteals = [];
   const seenByThiefAndExchange = new Set();
-
   attemptedSteals.forEach(t => {
-    const key = `${t.thief}|${t.exchange_player}`;
+    const key = `${t.thief}|${t.exchange_player_id}`;
     if (seenByThiefAndExchange.has(key)) {
       summaries.push({
         status: "fail",
-        message: `${t.thief} kullanıcısı aynı turda ${t.exchange_player} oyuncusunu birden fazla takasta veremez. Bu takas iptal edildi.`
+        message: `${t.thief} aynı turda aynı oyuncuyu (ID:${t.exchange_player_id}) birden fazla takasta veremez. Bu takas iptal edildi.`
       });
     } else {
       seenByThiefAndExchange.add(key);
@@ -352,16 +362,16 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
   // 1) Aynı oyuncuya çoklu talip -> iptal
   const stealCounts = {};
   candidateSteals.forEach(t => {
-    const key = `${t.target_username}|${t.stolen_player}`;
+    const key = `${t.target_username}|${t.stolen_player_id}`;
     stealCounts[key] = (stealCounts[key] || 0) + 1;
   });
 
   candidateSteals.forEach(t => {
-    const key = `${t.target_username}|${t.stolen_player}`;
+    const key = `${t.target_username}|${t.stolen_player_id}`;
     if (stealCounts[key] > 1) {
       summaries.push({
         status: "fail",
-        message: `${t.thief} kullanıcısı ${t.target_username}'dan ${t.stolen_player} oyuncusunu çalmaya çalıştı ancak bu oyuncuya birden fazla kişi talip olduğu için takas iptal edildi.`
+        message: `${t.thief} kullanıcısı ${t.target_username}'dan ${t.stolen_player_name} oyuncusunu çalmaya çalıştı ancak bu oyuncuya birden fazla kişi talip olduğu için takas iptal edildi.`
       });
       return;
     }
@@ -370,13 +380,14 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
     const protectSelects = document.querySelectorAll(`.protect-select[data-username="${t.target_username}"]`);
     let isProtected = false;
     protectSelects.forEach(select => {
-      if (select.value === t.stolen_player) isProtected = true;
+      if (parseInt(select.value, 10) === t.stolen_player_id) isProtected = true;
     });
 
     if (isProtected) {
       summaries.push({
         status: "fail",
-        message: `${t.thief} kullanıcısı, ${t.target_username}'dan ${t.stolen_player} oyuncusunu çalmak istedi ama bu oyuncu koruma altında.`
+        message: `${t.thief} kullanıcısı, ${t.target_username}'dan ${t.stolen_player_name} oyuncusunu çalmak istedi ama bu oyuncu koruma altında.`
+
       });
       return;
     }
@@ -389,17 +400,16 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
   // Bir kullanıcı bir oyuncuyu "exchange_player" olarak VERİYORSA,
   // aynı turda o oyuncuyu sahibinden ÇALMAYA çalışan trade'leri iptal et.
   // ownerOfferSet: "<ownerUsername>|<offeredPlayer>"
-  const ownerOfferSet = new Set(trades.map(t => `${t.thief}|${t.exchange_player}`));
-
+  const ownerOfferSet = new Set(trades.map(t => `${t.thief}|${t.exchange_player_id}`));
   const resolvedTrades = [];
   for (const t of trades) {
     // Bu trade, target'ın (sahibin) başka bir trade'de verdiği oyuncuyu mu çalıyor?
     // Yani t.stolen_player'ı t.target_username şu turda veriyor mu?
-    const stealsOfferedOfOwner = ownerOfferSet.has(`${t.target_username}|${t.stolen_player}`);
+    const stealsOfferedOfOwner = ownerOfferSet.has(`${t.target_username}|${t.stolen_player_id}`);
     if (stealsOfferedOfOwner) {
       summaries.push({
         status: "fail",
-        message: `${t.thief} kullanıcısı, ${t.target_username}'dan ${t.stolen_player} oyuncusunu çalmak istedi ama bu oyuncu artık o takımda değil.`
+        message: `${t.thief} kullanıcısı, ${t.target_username}'dan ${t.stolen_player_name} oyuncusunu çalmak istedi ama bu oyuncu artık o takımda değil.`
       });
       continue;
     }
@@ -418,7 +428,7 @@ document.getElementById("submit-trades-btn").addEventListener("click", async () 
   const result = await fetchJsonSafe(`${API}?action=process_trades`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(trades)
+    body: JSON.stringify(trades) // trades elemanları ID içeriyor
   });
 
   if (result.success) {
