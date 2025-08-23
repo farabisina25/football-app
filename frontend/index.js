@@ -48,6 +48,13 @@ let maxTurns = 11;
 let isWaitingForTeamSelection = true;
 
 const viewLineupsBtn = document.getElementById("view-lineups-btn");
+
+function setSpinDisabled(disabled) {
+  spinBtn.disabled = disabled;
+  spinBtn.style.opacity = disabled ? "0.6" : "1";
+  spinBtn.style.cursor  = disabled ? "not-allowed" : "pointer";
+}
+
 function setLineupsDisabled(disabled) {
   if (!viewLineupsBtn) return;
   viewLineupsBtn.disabled = disabled;
@@ -206,6 +213,7 @@ function drawRotatedWheel(angleOffset, highlightIndex = -1) {
 function spinWheel() {
   if (spinning || !isWaitingForTeamSelection) return;
   spinning = true;
+  setSpinDisabled(true); 
   setLineupsDisabled(true);
   velocity = Math.random() * 0.1 + 0.15;
 
@@ -249,6 +257,7 @@ async function handleTeamSelection(index) {
   const username = players[currentPlayerIndex].name;
   selectedTeam = teamData[index];
   isWaitingForTeamSelection = false;
+  setSpinDisabled(true);
 
   const headingRight = document.getElementById("right-heading");
   const playerAreaEl = document.getElementById("player-area");
@@ -329,6 +338,7 @@ async function handleTeamSelection(index) {
               isWaitingForTeamSelection = true;
               await calculateCurrentTurn();
               updateTurnInfo();
+              setSpinDisabled(!isWaitingForTeamSelection);
               isAdding = false; // ✅ işlem bitti
             }, 900);
           } else {
@@ -339,7 +349,7 @@ async function handleTeamSelection(index) {
         } catch (err) {
           isAdding = false;
           disableAllAddButtons(false);
-          alert("Sunucu hatası: " + err.message);
+          alert("Ekleme başarısız: " + (data.error || "Bilinmeyen hata"));
         }
       };
     }
@@ -406,6 +416,7 @@ loadTeams().then(async () => {
   await calculateCurrentTurn();
   updateTurnInfo();
   setLineupsDisabled(spinning);
+  setSpinDisabled(spinning);
   if (savedIndex !== null && isWaitingForTeamSelection) {
     await handleTeamSelection(parseInt(savedIndex, 10));
     return;
